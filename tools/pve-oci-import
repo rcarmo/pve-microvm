@@ -179,7 +179,9 @@ if [ "$CONFIGURE" -eq 1 ]; then
     # Detect init path
     INIT_PATH="${INIT:-}"
     if [ -z "$INIT_PATH" ]; then
-        if [ -f "$ROOTFS_DIR/sbin/init" ]; then
+        if [ -d "$ROOTFS_DIR/lib/systemd" ]; then
+            INIT_PATH="/sbin/init"
+        elif [ -f "$ROOTFS_DIR/sbin/init" ]; then
             INIT_PATH="/sbin/init"
         elif [ -f "$ROOTFS_DIR/sbin/microvm-init" ]; then
             INIT_PATH="/sbin/microvm-init"
@@ -192,8 +194,13 @@ if [ "$CONFIGURE" -eq 1 ]; then
 
     qm set "$VMID" \
         --machine microvm \
+        --serial0 socket \
+        --vga serial0 \
         --args "-kernel $KERNEL -append \"$KERNEL_ARGS\"" \
         2>/dev/null || log "warning: could not set VM args (configure manually)"
+
+    # Remove options that microvm doesn't support (auto-set by qm create)
+    qm set "$VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
 
     log "VM $VMID configured. Start with: qm start $VMID"
     log "Connect with: qm terminal $VMID"

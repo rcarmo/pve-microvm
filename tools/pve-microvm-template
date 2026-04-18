@@ -237,8 +237,12 @@ qm create "$TEMPLATE_VMID" \
     --cores "$CORES" \
     --net0 "virtio,bridge=$BRIDGE" \
     --serial0 socket \
+    --vga serial0 \
     --tags "$TAGS" \
     --args "-kernel $KERNEL -append \"$APPEND\""
+
+# Remove options that microvm doesn't support (auto-set by qm create)
+qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
 
 # Step 6: Import disk
 log "Importing disk to $STORAGE..."

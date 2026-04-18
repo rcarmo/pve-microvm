@@ -202,7 +202,8 @@ No data or existing VMs are affected.
 qm create 900 --machine microvm --memory 256 --cores 1 \
   --name my-microvm \
   --net0 virtio,bridge=vmbr0 \
-  --serial0 socket
+  --serial0 socket \
+  --vga serial0
 
 # 2. Import an OCI image as the root disk
 pve-oci-import --image alpine:latest --vmid 900 --configure
@@ -334,11 +335,15 @@ qm terminal <vmid>
 The serial console is exposed as a Unix socket at
 `/var/run/qemu-server/<vmid>.serial0`.
 
-You can also configure a serial port in the guest config:
+For the PVE web UI to open the serial console when you click "Console",
+set both `serial0` and `vga`:
 
 ```
 serial0: socket
+vga: serial0
 ```
+
+This tells PVE to use xterm.js with the serial port instead of noVNC.
 
 ### Networking
 
@@ -479,6 +484,8 @@ cores: 2
 sockets: 1
 kvm: 1
 agent: 1
+serial0: socket
+vga: serial0
 net0: virtio=BC:24:11:00:00:01,bridge=vmbr0
 scsi0: local-lvm:vm-900-disk-0,size=2G
 args: -kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=/dev/vda rw quiet"
