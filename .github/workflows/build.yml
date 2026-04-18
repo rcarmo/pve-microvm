@@ -87,6 +87,7 @@ jobs:
     needs: [build-kernel, build-deb]
     permissions:
       contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -110,3 +111,25 @@ jobs:
             release/pve-microvm_*.deb
           body_path: RELEASE_NOTES.md
           draft: false
+
+      - name: Publish .deb to GitHub Packages (OCI)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Install oras for OCI artifact push
+          ORAS_VERSION="1.2.2"
+          curl -sLO "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
+          tar xzf "oras_${ORAS_VERSION}_linux_amd64.tar.gz" oras
+          chmod +x oras
+
+          # Login to ghcr.io with the workflow GITHUB_TOKEN
+          echo "${{ secrets.GITHUB_TOKEN }}" | ./oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          # Push .deb as an OCI artifact
+          cd release
+          DEB=$(ls pve-microvm_*.deb)
+          ../oras push "ghcr.io/${{ github.repository }}:${TAG}" \
+            --artifact-type application/vnd.debian.binary-package \
+            "${DEB}:application/vnd.debian.binary-package"
+
+          echo "Published ${DEB} to ghcr.io/${{ github.repository }}:${TAG}"

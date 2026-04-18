@@ -1,3 +1,10 @@
+pve-microvm (0.1.3-1) trixie; urgency=medium
+
+  * Publish .deb to GitHub Packages (ghcr.io) as OCI artifact.
+  * Package now appears in the repo's Packages tab.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 16:45:00 +0000
+
 pve-microvm (0.1.2-1) trixie; urgency=medium
 
   * Fix: override dh_auto_clean to preserve kernel artifact during build.

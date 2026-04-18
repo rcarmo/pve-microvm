@@ -1,24 +1,19 @@
-# pve-microvm v0.1.2
+# pve-microvm v0.1.3
 
-The .deb now correctly ships the pre-built microvm kernel (~9 MB).
+The .deb is now published to GitHub Packages (ghcr.io) as an OCI artifact,
+so it appears in the repo's **Packages** tab.
 
-## Fixes since v0.1.1
+## Changes since v0.1.2
 
-- **Kernel actually included in .deb** — `dh_auto_clean` was calling
-  `make distclean` which deleted `kernel/vmlinuz-microvm` before packaging.
-  Fixed by overriding `dh_auto_clean` in `debian/rules`.
+- **Published to GitHub Packages** — the CI release workflow now pushes
+  the .deb to `ghcr.io/rcarmo/pve-microvm:vX.Y.Z` using ORAS.
+  Shows up in the Packages sidebar on the repo page.
 
-## Fixes since v0.1.0
+## Previous fixes
 
-- **Regex patch rewritten in Python** — the Perl-based patcher produced an
-  unmatched `)` in `Machine.pm`. Rewritten with exact string replacement.
-
-## Tested on
-
-- **z83ii** — PVE 9.1.7, kernel 6.17.13-2-pve, QEMU 10.1.2
-- `qm create 999 --machine microvm --memory 128` ✅
-- `qm destroy 999` ✅
-- Patch apply/revert cycle ✅
+- v0.1.2: .deb correctly includes the pre-built kernel (~9 MB)
+- v0.1.1: regex patcher rewritten in Python, tested on live PVE 9 node
+- v0.1.0: initial release
 
 ## What this is
 
