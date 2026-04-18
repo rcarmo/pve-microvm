@@ -1,0 +1,12 @@
+debian/pve-microvm/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/pve-microvm.debhelper.log
+debian/pve-microvm.substvars
+
+*.deb
+*.buildinfo
+*.changes
+
+kernel/vmlinuz-microvm

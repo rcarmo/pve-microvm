@@ -20,6 +20,17 @@ override_dh_auto_install:
 	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm
 	install -m 644 doc/microvm-defaults.conf $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/
 
+	# Install microvm kernel (if present — built by CI or build-kernel.sh)
+	if [ -f kernel/vmlinuz-microvm ]; then \
+		install -m 644 kernel/vmlinuz-microvm $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/vmlinuz; \
+	fi
+
+	# Install kernel build tooling
+	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel
+	install -m 755 kernel/build-kernel.sh $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel/
+	install -m 644 kernel/base-x86_64-6.1.config $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel/
+	install -m 644 kernel/pve-microvm-overlay.config $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel/
+
 override_dh_auto_build:
 	# Nothing to build
 

@@ -1,0 +1,113 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-kernel:
+    name: Build microvm kernel
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            build-essential flex bison bc libelf-dev libssl-dev wget \
+            cpio
+
+      - name: Cache kernel source
+        uses: actions/cache@v4
+        with:
+          path: /tmp/pve-microvm-kernel-build/linux-*.tar.xz
+          key: kernel-source-6.12.22
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          ./build-kernel.sh --version 6.12.22 --output vmlinuz-microvm
+          ls -lh vmlinuz-microvm
+
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmlinuz-microvm
+          path: kernel/vmlinuz-microvm
+          retention-days: 90
+
+  build-deb:
+    name: Build Debian package
+    runs-on: ubuntu-24.04
+    needs: build-kernel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download kernel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vmlinuz-microvm
+          path: kernel/
+
+      - name: Verify kernel
+        run: |
+          ls -lh kernel/vmlinuz-microvm
+          file kernel/vmlinuz-microvm
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dpkg-dev debhelper fakeroot
+
+      - name: Build .deb
+        run: |
+          dpkg-buildpackage -us -uc -b
+          ls -lh ../pve-microvm_*.deb
+
+      - name: Inspect package contents
+        run: |
+          dpkg-deb -c ../pve-microvm_*.deb
+          echo "---"
+          dpkg-deb -I ../pve-microvm_*.deb
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pve-microvm-deb
+          path: ../pve-microvm_*.deb
+          retention-days: 90
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [build-kernel, build-deb]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: vmlinuz-microvm
+          path: release/
+
+      - name: Download .deb
+        uses: actions/download-artifact@v4
+        with:
+          name: pve-microvm-deb
+          path: release/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/vmlinuz-microvm
+            release/pve-microvm_*.deb
+          generate_release_notes: true
+          draft: false
