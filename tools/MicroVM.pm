@@ -169,7 +169,17 @@ sub microvm_config_to_command {
     }
 
     # ── Block devices ────────────────────────────────────────────
-    # Use virtio-blk-device (virtio-mmio) instead of PCI variants
+    # Use virtio-blk-device (virtio-mmio) instead of PCI variants.
+    # Supports all PVE storage backends: local dir, LVM, LVM-thin, ZFS,
+    # Ceph/RBD, NFS, CIFS, GlusterFS — anything PVE::Storage::path() resolves.
+    #
+    # Storage type → what QEMU sees:
+    #   local dir   → /var/lib/vz/images/<vmid>/vm-<vmid>-disk-0.qcow2
+    #   LVM         → /dev/<vg>/vm-<vmid>-disk-0              (raw block)
+    #   LVM-thin    → /dev/<vg>/vm-<vmid>-disk-0              (raw block)
+    #   ZFS         → /dev/zvol/<pool>/vm-<vmid>-disk-0       (raw block)
+    #   Ceph/RBD    → rbd:<pool>/vm-<vmid>-disk-0             (librbd)
+    #   NFS/CIFS    → /mnt/pve/<store>/images/<vmid>/...      (file)
     for my $ds (PVE::QemuServer::Drive::valid_drive_names()) {
         next if !$conf->{$ds};
         next if $ds =~ m/^(efidisk|tpmstate)/;
@@ -181,20 +191,76 @@ sub microvm_config_to_command {
         next if !$volid;
         next if PVE::QemuServer::Drive::drive_is_cdrom($drive, 1);
 
-        my $path;
+        my ($path, $format);
+        my $is_rbd = 0;
+        my $scfg;
+
         if ($volid =~ m|^/|) {
+            # Absolute path (raw file or block device)
             $path = $volid;
+            $format = $drive->{format} || 'raw';
         } else {
-            $path = PVE::Storage::path($storecfg, $volid);
+            # PVE-managed volume — resolve through storage layer
+            my ($storeid) = PVE::Storage::parse_volume_id($volid, 1);
+            $scfg = $storeid ? PVE::Storage::storage_config($storecfg, $storeid) : undef;
+
+            ($path, undef) = PVE::Storage::path($storecfg, $volid);
             push @$vollist, $volid;
+
+            $is_rbd = ($path =~ m/^rbd:/) ? 1 : 0;
+
+            # Determine format: explicit > storage-detected > raw
+            $format = $drive->{format};
+            if (!$format) {
+                eval { $format = PVE::Storage::volume_format($storecfg, $volid); };
+                $format //= 'raw';
+            }
+            $format = 'rbd' if $is_rbd && !$drive->{format};
         }
 
-        my $format = $drive->{format} || PVE::Storage::volume_format($storecfg, $volid);
+        # Build -drive line
+        my $drive_cmd;
+        if ($is_rbd) {
+            # RBD uses its own driver, path is the rbd: URI
+            $drive_cmd = "file=$path,id=drive-$ds,if=none,format=rbd";
+        } else {
+            $drive_cmd = "file=$path,id=drive-$ds,if=none";
+            $drive_cmd .= ",format=$format" if $format;
+        }
 
-        my $drive_cmd = "file=$path,id=drive-$ds,if=none";
-        $drive_cmd .= ",format=$format" if $format;
-        $drive_cmd .= ",cache=none,detect-zeroes=on";
-        $drive_cmd .= ",aio=io_uring" if -e '/sys/module/io_uring';
+        # Cache: use cache=none for block devices and direct-IO capable storage
+        my $cache_direct = 0;
+        if ($scfg) {
+            $cache_direct = PVE::QemuServer::Drive::drive_uses_cache_direct($drive, $scfg);
+        } elsif (-b $path || $is_rbd) {
+            # Block device or RBD — always direct
+            $cache_direct = 1;
+        }
+        $drive_cmd .= ",cache=none" if $cache_direct && !$drive->{cache};
+        $drive_cmd .= ",cache=$drive->{cache}" if $drive->{cache};
+
+        # AIO backend
+        if ($scfg) {
+            my $aio = PVE::QemuServer::Drive::aio_cmdline_option($scfg, $drive, $cache_direct);
+            $drive_cmd .= ",aio=$aio";
+        } elsif ($cache_direct) {
+            # Default: io_uring if available, native otherwise
+            my $aio = (-e '/sys/module/io_uring') ? 'io_uring' : 'native';
+            $drive_cmd .= ",aio=$aio";
+        }
+
+        $drive_cmd .= ",detect-zeroes=on" if !PVE::QemuServer::Drive::drive_is_cdrom($drive, 1);
+
+        # Throttling
+        foreach my $type (['', '-total'], [_rd => '-read'], [_wr => '-write']) {
+            my ($dir, $qmpname) = @$type;
+            if (my $v = $drive->{"mbps$dir"}) {
+                $drive_cmd .= ",throttling.bps$qmpname=" . int($v * 1024 * 1024);
+            }
+            if (my $v = $drive->{"iops$dir"}) {
+                $drive_cmd .= ",throttling.iops$qmpname=$v";
+            }
+        }
 
         push @$cmd, '-drive', $drive_cmd;
         push @$cmd, '-device', "virtio-blk-device,drive=drive-$ds";
