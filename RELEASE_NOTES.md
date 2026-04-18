@@ -1,6 +1,22 @@
-# pve-microvm v0.1.0
+# pve-microvm v0.1.1
 
-First release — **highly experimental proof-of-concept**.
+Bugfix release — the v0.1.0 .deb was missing the kernel binary and had a
+broken regex patch. Both are fixed.
+
+## Fixes since v0.1.0
+
+- **Kernel now included in .deb** — `make clean` was deleting `kernel/vmlinuz-microvm`
+  before `dpkg-buildpackage` could include it. Fixed.
+- **Regex patch rewritten in Python** — the Perl-based patcher produced an
+  unmatched `)` in `Machine.pm`, causing `qm create --machine microvm` to fail.
+  Rewritten with exact string replacement. Tested on live PVE 9 node.
+
+## Tested on
+
+- **z83ii** — PVE 9.1.7, kernel 6.17.13-2-pve, QEMU 10.1.2
+- `qm create 999 --machine microvm --memory 128` ✅
+- `qm destroy 999` ✅
+- Patch apply/revert cycle ✅
 
 ## What this is
 

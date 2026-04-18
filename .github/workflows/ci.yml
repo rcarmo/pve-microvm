@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-deb:
+    name: Build Debian package (without kernel)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dpkg-dev debhelper fakeroot build-essential
+
+      - name: Build .deb (no kernel)
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist
+          mv ../pve-microvm_*.deb dist/
+          ls -lh dist/
+
+      - name: Inspect package
+        run: dpkg-deb -c dist/pve-microvm_*.deb

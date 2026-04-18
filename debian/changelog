@@ -1,3 +1,11 @@
+pve-microvm (0.1.1-1) trixie; urgency=medium
+
+  * Fix: include vmlinuz kernel in .deb (clean target was deleting it).
+  * Fix: regex patch now produces valid Machine.pm (rewrote patcher in Python).
+  * Tested on live PVE 9.1.7 node (z83ii): qm create/destroy works.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 15:30:00 +0000
+
 pve-microvm (0.1.0-1) trixie; urgency=medium
 
   * Initial release targeting Proxmox VE 9.0 (Debian Trixie).

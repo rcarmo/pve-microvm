@@ -42,4 +42,6 @@ deb:
 
 clean:
 	dh_clean 2>/dev/null || true
+
+distclean: clean
 	rm -f kernel/vmlinuz-microvm
