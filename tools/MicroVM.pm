@@ -6,6 +6,8 @@ use warnings;
 use PVE::QemuServer::Helpers;
 use PVE::QemuServer::Machine;
 use PVE::QemuServer::Drive;
+use PVE::QemuServer::Network;
+use PVE::QemuServer::Agent;
 use PVE::Storage;
 use PVE::Tools qw(run_command);
 
@@ -24,11 +26,16 @@ no VGA/ACPI/USB, and boot via direct kernel loading.
 
 =cut
 
-# Features that are NOT supported on microvm
+# Features that are NOT supported on microvm — error if explicitly set
 my @UNSUPPORTED_OPTIONS = qw(
     bios vga tablet audio0 hostpci0 hostpci1 hostpci2 hostpci3
     usb0 usb1 usb2 usb3 usb4 usb5 usb6 usb7 usb8 usb9
-    vmgenid tpmstate0 efidisk0 rng0 parallel0 parallel1 parallel2
+    tpmstate0 efidisk0 rng0 parallel0 parallel1 parallel2
+);
+
+# Options silently ignored on microvm (auto-set by qm create, harmless)
+my @IGNORED_OPTIONS = qw(
+    vmgenid smbios1
 );
 
 =head2 is_microvm($conf)
@@ -158,7 +165,7 @@ sub microvm_config_to_command {
     push @$cmd, '-serial', 'chardev:serial0';
 
     # ── Guest agent (optional) ───────────────────────────────────
-    my $guest_agent = PVE::QemuServer::parse_guest_agent($conf);
+    my $guest_agent = PVE::QemuServer::Agent::parse_guest_agent($conf);
     if ($guest_agent->{enabled}) {
         my $qgasocket = PVE::QemuServer::Helpers::qmp_socket(
             { name => "VM $vmid", id => $vmid, type => 'qga' }
@@ -272,7 +279,7 @@ sub microvm_config_to_command {
         my $netkey = "net$i";
         next if !$conf->{$netkey};
 
-        my $net = PVE::QemuServer::parse_net($conf->{$netkey});
+        my $net = PVE::QemuServer::Network::parse_net($conf->{$netkey});
         next if !$net;
 
         my $tapname = "tap${vmid}i${i}";
@@ -290,8 +297,16 @@ sub microvm_config_to_command {
     # Passed through from the args config option.
     # Expected format:
     #   args: -kernel /path/to/vmlinuz -append "console=ttyS0 root=/dev/vda rw" [-initrd /path/to/initrd]
+    # Must handle quoted strings properly (e.g. -append "..." is one argument).
     if ($conf->{args}) {
-        my @args = split(/\s+/, $conf->{args});
+        my $args_str = $conf->{args};
+        # Parse respecting double-quoted strings
+        my @args;
+        while ($args_str =~ /\G\s*("[^"]*"|\S+)/g) {
+            my $arg = $1;
+            $arg =~ s/^"(.*)"$/$1/;  # strip outer quotes
+            push @args, $arg;
+        }
         push @$cmd, @args;
     }
 

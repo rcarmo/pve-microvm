@@ -33,7 +33,6 @@ cmd_apply() {
 
     mkdir -p "$BACKUP_DIR"
 
-    # Back up originals
     log "backing up originals to $BACKUP_DIR"
     cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
     cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
@@ -41,63 +40,66 @@ cmd_apply() {
     # ── Patch Machine.pm ─────────────────────────────────────────
     log "patching Machine.pm"
 
-    # 1. Add |microvm to the machine type regex
-    #    Before: ...virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)
-    #    After:  ...virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)
-    python3 -c "
-import re, sys
-path = '$MACHINE_PM'
+    python3 << 'PATCHMACHINE'
+import sys
+
+path = "/usr/share/perl5/PVE/QemuServer/Machine.pm"
 with open(path) as f:
     text = f.read()
 
-# Insert |microvm before the final ) of the outer regex group
-old = r\"virt(?:-\\d+(\\.\\.\\d+)+)?(\\+pve\\d+)?)'\"
-# Actually just do exact string replacement on the known pattern line
-text = text.replace(
-    r\"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)\",
-    r\"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)\",
-    1  # only first occurrence
-)
+original = text
+changes = []
 
-with open(path, 'w') as f:
+# 1. Add |microvm to the machine type regex
+old_re = r"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)"
+new_re = r"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)"
+if old_re in text:
+    text = text.replace(old_re, new_re, 1)
+    changes.append("regex patched")
+else:
+    changes.append("regex already patched or not found")
+
+# 2. Add microvm to machine_base_type()
+marker = "    return 'virt' if "
+if marker in text and "'microvm'" not in text:
+    lines = text.split("\n")
+    out = []
+    for line in lines:
+        out.append(line)
+        if line.strip().startswith("return 'virt' if"):
+            out.append("    return 'microvm' if $machine_type =~ m/^microvm/;")
+    text = "\n".join(out)
+    changes.append("machine_base_type patched")
+else:
+    changes.append("machine_base_type already patched or not found")
+
+# 3. Add microvm to supported_machine_flags
+if "virt => {}" in text and "microvm => {}" not in text:
+    text = text.replace("    virt => {},", "    virt => {},\n    microvm => {},")
+    changes.append("machine_flags patched")
+else:
+    changes.append("machine_flags already patched or not found")
+
+# 4. Make get_vm_machine() return 'microvm' directly without +pve0 append
+# Insert early return before the +pve0 logic
+marker_pve0 = "    if ($machine !~ m/\\+pve\\d+?(?:\\.pxe)?$/)"
+if marker_pve0 in text and "microvm" not in text.split(marker_pve0)[0].split("sub get_vm_machine")[-1]:
+    text = text.replace(
+        marker_pve0,
+        "    # pve-microvm: microvm doesn't use +pveN versioning\n"
+        "    return $machine if $machine =~ m/^microvm/;\n\n"
+        + marker_pve0
+    )
+    changes.append("get_vm_machine patched")
+else:
+    changes.append("get_vm_machine already patched or marker not found")
+
+with open(path, "w") as f:
     f.write(text)
-print('  regex patched')
-"
 
-    # 2. Add microvm to machine_base_type()
-    python3 -c "
-path = '$MACHINE_PM'
-with open(path) as f:
-    lines = f.readlines()
-
-out = []
-for line in lines:
-    out.append(line)
-    if \"return 'virt' if\" in line and 'virt' in line:
-        indent = '    '
-        out.append(indent + \"return 'microvm' if \\\$machine_type =~ m/^microvm/;\\n\")
-
-with open(path, 'w') as f:
-    f.writelines(out)
-print('  machine_base_type patched')
-"
-
-    # 3. Add microvm to supported_machine_flags
-    python3 -c "
-path = '$MACHINE_PM'
-with open(path) as f:
-    lines = f.readlines()
-
-out = []
-for line in lines:
-    out.append(line)
-    if 'virt => {}' in line:
-        out.append('    microvm => {},\\n')
-
-with open(path, 'w') as f:
-    f.writelines(out)
-print('  machine_flags patched')
-"
+for c in changes:
+    print(f"  {c}")
+PATCHMACHINE
 
     # ── Install MicroVM.pm ───────────────────────────────────────
     log "installing MicroVM.pm module"
@@ -105,8 +107,9 @@ print('  machine_flags patched')
 
     # ── Patch QemuServer.pm ──────────────────────────────────────
     log "patching QemuServer.pm"
-    python3 -c "
-path = '$QEMU_SERVER_PM'
+
+    python3 << 'PATCHQS'
+path = "/usr/share/perl5/PVE/QemuServer.pm"
 with open(path) as f:
     lines = f.readlines()
 
@@ -115,28 +118,28 @@ added_use = False
 added_check = False
 for line in lines:
     # Add use statement
-    if not added_use and line.startswith('use PVE::QemuServer::Machine;'):
+    if not added_use and line.startswith("use PVE::QemuServer::Machine;"):
         out.append(line)
-        out.append('use PVE::QemuServer::MicroVM;\\n')
+        out.append("use PVE::QemuServer::MicroVM;\n")
         added_use = True
         continue
 
     # Add microvm delegation at start of config_to_command
-    if not added_check and line.startswith('sub config_to_command {'):
+    if not added_check and line.startswith("sub config_to_command {"):
         out.append(line)
-        out.append('    # pve-microvm: delegate to microvm command builder\\n')
-        out.append('    if (PVE::QemuServer::MicroVM::is_microvm((\@_)[2])) {\\n')
-        out.append('        return PVE::QemuServer::MicroVM::microvm_config_to_command(\@_);\\n')
-        out.append('    }\\n')
+        out.append("    # pve-microvm: delegate to microvm command builder\n")
+        out.append("    if (PVE::QemuServer::MicroVM::is_microvm(($_[2]))) {\n")
+        out.append("        return PVE::QemuServer::MicroVM::microvm_config_to_command(@_);\n")
+        out.append("    }\n")
         added_check = True
         continue
 
     out.append(line)
 
-with open(path, 'w') as f:
+with open(path, "w") as f:
     f.writelines(out)
-print('  QemuServer.pm patched (use: ' + str(added_use) + ', delegate: ' + str(added_check) + ')')
-"
+print(f"  QemuServer.pm patched (use: {added_use}, delegate: {added_check})")
+PATCHQS
 
     # ── Install UI ───────────────────────────────────────────────
     install_ui
@@ -150,15 +153,11 @@ install_ui() {
     if [ -d "$PVE_CSS_DIR" ]; then
         log "installing microvm CSS"
         install -m 644 /usr/share/pve-microvm/ui/pve-microvm.css "$PVE_CSS_DIR/pve-microvm.css"
-    else
-        log "warning: $PVE_CSS_DIR not found, skipping CSS install"
     fi
 
     if [ -d "$PVE_JS_DIR" ]; then
         log "installing microvm JS"
         install -m 644 /usr/share/pve-microvm/ui/pve-microvm.js "$PVE_JS_DIR/pve-microvm.js"
-    else
-        log "warning: $PVE_JS_DIR not found, skipping JS install"
     fi
 
     if [ -f "$INDEX_TPL" ]; then
@@ -166,12 +165,7 @@ install_ui() {
             log "injecting microvm JS into index.html.tpl"
             cp -a "$INDEX_TPL" "$BACKUP_DIR/index.html.tpl.orig"
             sed -i '/<\/head>/i \    <script type="text/javascript" src="/pve2/js/pve-microvm.js"><\/script>' "$INDEX_TPL"
-            log "UI injection done — reload the PVE web UI to see changes"
-        else
-            log "microvm JS already in index.html.tpl"
         fi
-    else
-        log "warning: $INDEX_TPL not found, skipping UI injection"
     fi
 }
 
@@ -183,26 +177,13 @@ cmd_revert() {
 
     log "reverting patches"
 
-    if [ -f "$BACKUP_DIR/Machine.pm.orig" ]; then
-        cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM"
-        log "restored Machine.pm"
-    fi
-
-    if [ -f "$BACKUP_DIR/QemuServer.pm.orig" ]; then
-        cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM"
-        log "restored QemuServer.pm"
-    fi
+    [ -f "$BACKUP_DIR/Machine.pm.orig" ] && cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM" && log "restored Machine.pm"
+    [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] && cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM" && log "restored QemuServer.pm"
+    [ -f "$BACKUP_DIR/index.html.tpl.orig" ] && cp -a "$BACKUP_DIR/index.html.tpl.orig" "$INDEX_TPL" && log "restored index.html.tpl"
 
     rm -f "$MICROVM_MODULE"
-
     rm -f "$PVE_CSS_DIR/pve-microvm.css" 2>/dev/null
     rm -f "$PVE_JS_DIR/pve-microvm.js" 2>/dev/null
-
-    if [ -f "$BACKUP_DIR/index.html.tpl.orig" ]; then
-        cp -a "$BACKUP_DIR/index.html.tpl.orig" "$INDEX_TPL"
-        log "restored index.html.tpl"
-    fi
-
     rm -rf "$BACKUP_DIR"
     rm -f "$STAMP"
 
