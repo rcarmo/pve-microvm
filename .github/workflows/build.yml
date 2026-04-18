@@ -67,19 +67,21 @@ jobs:
       - name: Build .deb
         run: |
           dpkg-buildpackage -us -uc -b
-          ls -lh ../pve-microvm_*.deb
+          mkdir -p dist
+          mv ../pve-microvm_*.deb dist/
+          ls -lh dist/
 
       - name: Inspect package contents
         run: |
-          dpkg-deb -c ../pve-microvm_*.deb
+          dpkg-deb -c dist/pve-microvm_*.deb
           echo "---"
-          dpkg-deb -I ../pve-microvm_*.deb
+          dpkg-deb -I dist/pve-microvm_*.deb
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: pve-microvm-deb
-          path: ../pve-microvm_*.deb
+          path: dist/pve-microvm_*.deb
           retention-days: 90
 
   release:
