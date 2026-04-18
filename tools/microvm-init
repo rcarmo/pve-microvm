@@ -1,0 +1,60 @@
+#!/bin/sh
+# /sbin/microvm-init — minimal init for pve-microvm guests
+#
+# This is a simple PID 1 process that:
+# 1. Mounts essential filesystems
+# 2. Sets up networking basics
+# 3. Spawns an interactive login shell on the serial console (ttyS0)
+# 4. Respawns the shell if it exits
+#
+# For images without systemd or busybox init (e.g., debian:trixie-slim).
+
+# Mount essential filesystems
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sys /sys 2>/dev/null
+mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm /run /tmp
+mount -t devpts devpts /dev/pts 2>/dev/null
+mount -t tmpfs tmpfs /run 2>/dev/null
+mount -t tmpfs tmpfs /tmp 2>/dev/null
+
+# Set hostname
+hostname microvm 2>/dev/null
+
+# Basic networking — bring up loopback
+ip link set lo up 2>/dev/null
+
+# Try DHCP on eth0 if available (background, don't block boot)
+if [ -x /usr/sbin/dhclient ]; then
+    dhclient eth0 >/dev/null 2>&1 &
+elif [ -x /sbin/udhcpc ]; then
+    udhcpc -i eth0 -q -n >/dev/null 2>&1 &
+fi
+
+# Set PATH
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root
+export TERM=linux
+
+echo ""
+echo "=== pve-microvm booted ==="
+echo ""
+
+# Spawn shell on serial console, respawn on exit
+while true; do
+    if [ -x /sbin/agetty ]; then
+        # agetty handles login prompts properly
+        /sbin/agetty --autologin root --noclear ttyS0 linux
+    elif [ -x /usr/sbin/agetty ]; then
+        /usr/sbin/agetty --autologin root --noclear ttyS0 linux
+    elif [ -x /bin/bash ]; then
+        /bin/bash -l </dev/ttyS0 >/dev/ttyS0 2>&1
+    elif [ -x /bin/sh ]; then
+        /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1
+    else
+        echo "No shell found!" >/dev/ttyS0
+        sleep 60
+    fi
+    # Small delay before respawn
+    sleep 0.5
+done

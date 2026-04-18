@@ -170,40 +170,19 @@ for dir in proc sys dev dev/pts run tmp; do
     mkdir -p "$ROOTFS_DIR/$dir"
 done
 
-# Ensure an init exists
-if [ ! -f "$ROOTFS_DIR/sbin/init" ] && [ ! -L "$ROOTFS_DIR/sbin/init" ]; then
-    if [ -f "$ROOTFS_DIR/bin/busybox" ]; then
-        # Alpine-style: busybox provides init
-        ln -sf ../bin/busybox "$ROOTFS_DIR/sbin/init"
-    elif [ -f "$ROOTFS_DIR/usr/bin/bash" ] || [ -f "$ROOTFS_DIR/bin/bash" ]; then
-        # Debian/Ubuntu-style: create a minimal init that spawns a shell on ttyS0
-        cat > "$ROOTFS_DIR/sbin/init" <<'SHELLINIT'
-#!/bin/sh
-mount -t proc proc /proc 2>/dev/null
-mount -t sysfs sys /sys 2>/dev/null
-mount -t devtmpfs dev /dev 2>/dev/null
-mkdir -p /dev/pts && mount -t devpts devpts /dev/pts 2>/dev/null
-hostname microvm
-echo "pve-microvm booted"
-exec /bin/bash </dev/ttyS0 >/dev/ttyS0 2>&1 || exec /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1
-SHELLINIT
-        chmod 755 "$ROOTFS_DIR/sbin/init"
-    fi
-fi
+# Install init system for the rootfs
+MICROVM_INIT="/usr/share/pve-microvm/microvm-init"
 
-# For images with systemd: mask services that won't work in microvm
-if [ -d "$ROOTFS_DIR/lib/systemd/system" ]; then
+if [ -d "$ROOTFS_DIR/lib/systemd/system" ] && [ -f "$ROOTFS_DIR/lib/systemd/systemd" ]; then
     log "systemd detected — configuring for serial console"
-    # Enable serial getty
     mkdir -p "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"
     ln -sf /lib/systemd/system/serial-getty@.service \
         "$ROOTFS_DIR/etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service" 2>/dev/null || true
-    # Set root password to empty for first login
     sed -i 's|^root:[^:]*:|root::|' "$ROOTFS_DIR/etc/shadow" 2>/dev/null || true
-fi
 
-# Busybox inittab for Alpine-style images
-if [ -f "$ROOTFS_DIR/bin/busybox" ] && [ ! -f "$ROOTFS_DIR/etc/inittab" ] && [ ! -d "$ROOTFS_DIR/lib/systemd" ]; then
+elif [ -f "$ROOTFS_DIR/bin/busybox" ]; then
+    log "busybox detected — configuring inittab for ttyS0"
+    [ -f "$ROOTFS_DIR/sbin/init" ] || ln -sf ../bin/busybox "$ROOTFS_DIR/sbin/init"
     cat > "$ROOTFS_DIR/etc/inittab" <<'INITTAB'
 ::sysinit:/bin/mount -t proc proc /proc
 ::sysinit:/bin/mount -t sysfs sys /sys
@@ -214,6 +193,18 @@ if [ -f "$ROOTFS_DIR/bin/busybox" ] && [ ! -f "$ROOTFS_DIR/etc/inittab" ] && [ !
 ttyS0::respawn:/bin/sh
 ::shutdown:/bin/umount -a -r
 INITTAB
+
+else
+    log "no init found — installing microvm-init"
+    if [ -f "$MICROVM_INIT" ]; then
+        install -m 755 "$MICROVM_INIT" "$ROOTFS_DIR/sbin/microvm-init"
+        ln -sf microvm-init "$ROOTFS_DIR/sbin/init"
+    fi
+fi
+
+# Set empty root password for serial login
+if [ -f "$ROOTFS_DIR/etc/shadow" ]; then
+    sed -i 's|^root:[^:]*:|root::|' "$ROOTFS_DIR/etc/shadow" 2>/dev/null || true
 fi
 
 # DNS defaults

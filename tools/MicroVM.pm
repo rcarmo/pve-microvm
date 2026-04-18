@@ -87,8 +87,6 @@ sub microvm_validate_config {
     # Ensure serial0 is set so `qm terminal` can find the serial interface
     $conf->{serial0} = 'socket' if !defined($conf->{serial0});
 
-    # Disable balloon in config (microvm has no balloon device)
-    $conf->{balloon} = 0;
 
     # microvm requires a kernel specified in args
     die "microvm requires a kernel — set 'args: -kernel /path/to/vmlinuz' in VM config\n"
@@ -186,6 +184,11 @@ sub microvm_config_to_command {
     # ── Memory ───────────────────────────────────────────────────
     my $memory = $conf->{memory} || 512;
     push @$cmd, '-m', "${memory}M";
+
+    # ── Balloon device ───────────────────────────────────────────
+    # virtio-balloon-device on mmio bus suppresses the PVE post-start
+    # balloon warning and enables memory reporting.
+    push @$cmd, '-device', 'virtio-balloon-device,id=balloon0';
 
     # ── Serial console ───────────────────────────────────────────
     # Primary console for microvm — accessible via `qm terminal $vmid`
