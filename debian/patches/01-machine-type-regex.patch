@@ -1,0 +1,28 @@
+--- a/src/PVE/QemuServer/Machine.pm
++++ b/src/PVE/QemuServer/Machine.pm
+@@ -48,7 +48,7 @@
+     type => {
+         default_key => 1,
+         description => "Specifies the QEMU machine type.",
+         type => 'string',
+         pattern =>
+-            '(pc|pc(-i440fx)?-\d+(\.\d+)+(\+pve\d+)?(\.pxe)?|q35|pc-q35-\d+(\.\d+)+(\+pve\d+)?(\.pxe)?|virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)',
++            '(pc|pc(-i440fx)?-\d+(\.\d+)+(\+pve\d+)?(\.pxe)?|q35|pc-q35-\d+(\.\d+)+(\+pve\d+)?(\.pxe)?|virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)',
+         maxLength => 40,
+         format_description => 'machine type',
+         optional => 1,
+@@ -138,6 +138,7 @@
+     return 'q35' if $machine_type =~ m/q35/;
+     return 'i440fx' if $machine_type =~ m/^pc/;
+     return 'virt' if $machine_type =~ m/^virt/;
++    return 'microvm' if $machine_type =~ m/^microvm/;
+ 
+     die "unable to determine machine base type '$machine_type'\n";
+ }
+@@ -155,6 +156,7 @@
+     q35 => {
+         hpet => 1,
+     },
+     virt => {},
++    microvm => {},
+ };

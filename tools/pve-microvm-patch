@@ -1,0 +1,144 @@
+#!/bin/bash
+# pve-microvm-patch — apply or revert pve-microvm patches to qemu-server
+#
+# Usage:
+#   pve-microvm-patch apply    — back up originals and apply patches
+#   pve-microvm-patch revert   — restore originals from backup
+#   pve-microvm-patch status   — show whether patches are applied
+
+set -euo pipefail
+
+PATCH_DIR="/usr/share/pve-microvm/patches"
+BACKUP_DIR="/usr/share/pve-microvm/backup"
+MICROVM_MODULE="/usr/share/perl5/PVE/QemuServer/MicroVM.pm"
+QEMU_SERVER_DIR="/usr/share/perl5/PVE/QemuServer"
+QEMU_SERVER_PM="/usr/share/perl5/PVE/QemuServer.pm"
+MACHINE_PM="${QEMU_SERVER_DIR}/Machine.pm"
+
+STAMP="/usr/share/pve-microvm/.applied"
+
+log() { echo "pve-microvm: $*"; }
+die() { echo "pve-microvm: ERROR: $*" >&2; exit 1; }
+
+cmd_apply() {
+    if [ -f "$STAMP" ]; then
+        log "patches already applied (stamp exists), skipping"
+        return 0
+    fi
+
+    # Verify target files exist
+    [ -f "$MACHINE_PM" ]    || die "Machine.pm not found at $MACHINE_PM"
+    [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
+
+    # Create backup directory
+    mkdir -p "$BACKUP_DIR"
+
+    # Back up originals
+    log "backing up originals to $BACKUP_DIR"
+    cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
+    cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
+
+    # Patch 01: Machine.pm — add microvm to machine type regex and base type detection
+    log "patching Machine.pm — adding microvm machine type"
+    local machine_tmp=$(mktemp)
+    cp "$MACHINE_PM" "$machine_tmp"
+
+    # Add microvm to the regex pattern
+    sed -i "s|virt(?:-\\\d+(\\\.\\\d+)+)?(\\\+pve\\\d+)?)|virt(?:-\\\\d+(\\\\\.\\\\d+)+)?(\\\\+pve\\\\d+)?|microvm)|" "$machine_tmp" 2>/dev/null || true
+
+    # Simpler approach: use perl to do the patching
+    perl -i -pe '
+        # Add microvm to the machine type regex
+        if (/pattern\s*=>/ .. /maxLength/) {
+            s{(\Qvirt(?:-\d+(\.\d+)+)?(\+pve\d+)?\E\))}{$1|microvm)}
+                if /virt.*pve/;
+        }
+    ' "$machine_tmp"
+
+    # Add microvm to machine_base_type
+    perl -i -pe '
+        if (/return .virt. if.*virt/) {
+            $_ .= qq{    return '\''microvm'\'' if \$machine_type =~ m/^microvm/;\n};
+        }
+    ' "$machine_tmp"
+
+    # Add microvm to supported_machine_flags
+    perl -i -pe '
+        if (/virt\s*=>\s*\{\}/) {
+            $_ .= qq{    microvm => {},\n};
+        }
+    ' "$machine_tmp"
+
+    cp "$machine_tmp" "$MACHINE_PM"
+    rm -f "$machine_tmp"
+
+    # Patch 02: Install MicroVM.pm module
+    log "installing MicroVM.pm module"
+    install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
+
+    # Patch 03: QemuServer.pm — add microvm delegation
+    log "patching QemuServer.pm — adding microvm delegation"
+    perl -i -pe '
+        # Add use statement for MicroVM near the other use statements
+        if (/^use PVE::QemuServer::Machine;/ && !$added_use) {
+            $_ .= "use PVE::QemuServer::MicroVM;\n";
+            $added_use = 1;
+        }
+        # Add microvm check at the start of config_to_command
+        if (/^sub config_to_command \{/ && !$added_check) {
+            $_ .= "    my (\$storecfg_tmp, \$vmid_tmp, \$conf_tmp, \$defaults_tmp, \$options_tmp) = \@_;\n";
+            $_ .= "    if (PVE::QemuServer::MicroVM::is_microvm(\$conf_tmp)) {\n";
+            $_ .= "        return PVE::QemuServer::MicroVM::microvm_config_to_command(\@_);\n";
+            $_ .= "    }\n";
+            $added_check = 1;
+        }
+    ' "$QEMU_SERVER_PM"
+
+    # Create stamp
+    date -Iseconds > "$STAMP"
+    log "patches applied successfully"
+}
+
+cmd_revert() {
+    if [ ! -f "$STAMP" ]; then
+        log "patches not applied (no stamp), skipping"
+        return 0
+    fi
+
+    log "reverting patches"
+
+    # Restore originals
+    if [ -f "$BACKUP_DIR/Machine.pm.orig" ]; then
+        cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM"
+        log "restored Machine.pm"
+    fi
+
+    if [ -f "$BACKUP_DIR/QemuServer.pm.orig" ]; then
+        cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM"
+        log "restored QemuServer.pm"
+    fi
+
+    # Remove MicroVM.pm
+    rm -f "$MICROVM_MODULE"
+
+    # Remove backup and stamp
+    rm -rf "$BACKUP_DIR"
+    rm -f "$STAMP"
+
+    log "patches reverted successfully"
+}
+
+cmd_status() {
+    if [ -f "$STAMP" ]; then
+        echo "applied ($(cat "$STAMP"))"
+    else
+        echo "not applied"
+    fi
+}
+
+case "${1:-}" in
+    apply)  cmd_apply  ;;
+    revert) cmd_revert ;;
+    status) cmd_status ;;
+    *)      echo "Usage: $0 {apply|revert|status}" >&2; exit 1 ;;
+esac

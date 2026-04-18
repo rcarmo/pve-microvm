@@ -1,0 +1,13 @@
+#!/bin/bash
+# pve-microvm prerm — revert patches on removal
+set -e
+
+case "$1" in
+    remove|purge)
+        /usr/share/pve-microvm/pve-microvm-patch revert
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

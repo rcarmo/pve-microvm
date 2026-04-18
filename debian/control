@@ -1,0 +1,25 @@
+Source: pve-microvm
+Section: admin
+Priority: optional
+Maintainer: Rui Carmo <rui.carmo@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/rcarmo/pve-microvm
+
+Package: pve-microvm
+Architecture: all
+Depends: ${misc:Depends},
+         pve-qemu-kvm (>= 9.0),
+         qemu-server (>= 9.0),
+         skopeo,
+         umoci,
+         qemu-utils
+Recommends: pve-manager
+Description: QEMU microvm machine type support for Proxmox VE
+ Adds the QEMU microvm machine type as a managed guest type in Proxmox VE.
+ Provides patches to qemu-server for microvm-aware command generation,
+ a helper tool to convert OCI container images into bootable microvm disk
+ images, and a minimal microvm kernel configuration.
+ .
+ microvm guests boot in under 200ms, use virtio-mmio devices instead of
+ PCI, and provide full KVM hardware isolation with minimal attack surface.

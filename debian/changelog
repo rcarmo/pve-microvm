@@ -1,0 +1,8 @@
+pve-microvm (0.1.0-1) bookworm; urgency=medium
+
+  * Initial release.
+  * Patch qemu-server Machine.pm to allow microvm machine type.
+  * Add microvm-aware command generation to config_to_command.
+  * Ship pve-oci-import helper for OCI-to-microvm disk conversion.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 13:00:00 +0000

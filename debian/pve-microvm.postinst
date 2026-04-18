@@ -1,0 +1,13 @@
+#!/bin/bash
+# pve-microvm postinst — apply patches to qemu-server on install
+set -e
+
+case "$1" in
+    configure)
+        /usr/share/pve-microvm/pve-microvm-patch apply
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

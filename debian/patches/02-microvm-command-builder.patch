@@ -1,0 +1,246 @@
+--- a/src/PVE/QemuServer.pm
++++ b/src/PVE/QemuServer.pm
+@@ -3080,6 +3080,11 @@
+ sub config_to_command {
+     my ($storecfg, $vmid, $conf, $defaults, $options) = @_;
+ 
++    # Delegate to microvm-specific command builder if machine type is microvm
++    if (_is_microvm($conf)) {
++        return _microvm_config_to_command($storecfg, $vmid, $conf, $defaults, $options);
++    }
++
+     my ($forcemachine, $forcecpu, $live_restore_backing, $dry_run) =
+         $options->@{qw(force-machine force-cpu live-restore-backing dry-run)};
+ 
+--- /dev/null
++++ b/src/PVE/QemuServer/MicroVM.pm
+@@ -0,0 +1,320 @@
++package PVE::QemuServer::MicroVM;
++
++use strict;
++use warnings;
++
++use PVE::QemuServer::Helpers;
++use PVE::QemuServer::Machine;
++use PVE::QemuServer::Drive;
++use PVE::QemuServer::Memory;
++use PVE::Storage;
++use PVE::Tools qw(run_command);
++
++use base 'Exporter';
++our @EXPORT_OK = qw(is_microvm microvm_config_to_command microvm_validate_config);
++
++=head1 NAME
++
++PVE::QemuServer::MicroVM - QEMU microvm machine type support for Proxmox VE
++
++=head1 DESCRIPTION
++
++Provides command-line generation and config validation for QEMU's microvm
++machine type. microvm guests use virtio-mmio devices instead of PCI, have
++no VGA/ACPI/USB, and boot via direct kernel loading.
++
++=cut
++
++# Features that are NOT supported on microvm
++my @UNSUPPORTED_OPTIONS = qw(
++    bios vga tablet audio0 hostpci0 hostpci1 hostpci2 hostpci3
++    usb0 usb1 usb2 usb3 usb4 usb5 usb6 usb7 usb8 usb9
++    vmgenid tpmstate0 efidisk0 rng0 parallel0 parallel1 parallel2
++);
++
++=head2 is_microvm($conf)
++
++Returns true if the VM configuration uses the microvm machine type.
++
++=cut
++
++sub is_microvm {
++    my ($conf) = @_;
++    my $machine_conf = PVE::QemuServer::Machine::parse_machine($conf->{machine});
++    return 0 if !$machine_conf || !$machine_conf->{type};
++    return $machine_conf->{type} =~ m/^microvm/ ? 1 : 0;
++}
++
++=head2 microvm_validate_config($conf)
++
++Dies if the configuration contains options incompatible with microvm.
++
++=cut
++
++sub microvm_validate_config {
++    my ($conf) = @_;
++
++    return if !is_microvm($conf);
++
++    for my $opt (@UNSUPPORTED_OPTIONS) {
++        die "option '$opt' is not supported with microvm machine type\n"
++            if defined($conf->{$opt});
++    }
++
++    # microvm requires a kernel
++    die "microvm requires a kernel (set 'args: -kernel /path/to/vmlinuz')\n"
++        if !$conf->{args} || $conf->{args} !~ m/-kernel/;
++
++    return;
++}
++
++=head2 microvm_config_to_command($storecfg, $vmid, $conf, $defaults, $options)
++
++Generate the QEMU command line for a microvm guest. This is a stripped-down
++version of the main config_to_command that skips PCI, VGA, ACPI, USB, BIOS,
++and other features not supported by the microvm machine type.
++
++=cut
++
++sub microvm_config_to_command {
++    my ($storecfg, $vmid, $conf, $defaults, $options) = @_;
++
++    my ($forcemachine, $forcecpu) =
++        $options->@{qw(force-machine force-cpu)};
++
++    microvm_validate_config($conf);
++
++    my $cmd = [];
++    my $devices = [];
++
++    my $arch = PVE::QemuServer::Helpers::get_vm_arch($conf);
++    my $kvm_binary = PVE::QemuServer::Helpers::get_command_for_arch($arch);
++    my $kvm = $conf->{kvm} // 1;
++
++    # taskset for CPU affinity
++    if ($conf->{affinity}) {
++        push @$cmd, '/usr/bin/taskset', '--cpu-list', '--all-tasks', $conf->{affinity};
++    }
++
++    push @$cmd, $kvm_binary;
++    push @$cmd, '-id', $vmid;
++
++    my $vmname = $conf->{name} || "vm$vmid";
++    push @$cmd, '-name', "$vmname,debug-threads=on";
++
++    # Machine type — microvm with minimal features
++    my $machine_flags = 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on';
++    push @$cmd, '-M', $machine_flags;
++
++    push @$cmd, '-no-shutdown';
++    push @$cmd, '-nodefaults';
++    push @$cmd, '-no-user-config';
++    push @$cmd, '-nographic';
++
++    # KVM acceleration
++    if ($kvm) {
++        if (!defined PVE::QemuServer::kvm_version()) {
++            die "KVM virtualisation configured, but not available.\n";
++        }
++        push @$cmd, '-enable-kvm';
++    }
++
++    # QMP socket for monitoring
++    my $qmpsocket = PVE::QemuServer::Helpers::qmp_socket(
++        { name => "VM $vmid", id => $vmid, type => 'qmp' }
++    );
++    push @$cmd, '-chardev', "socket,id=qmp,path=$qmpsocket,server=on,wait=off";
++    push @$cmd, '-mon', "chardev=qmp,mode=control";
++
++    # PID file
++    push @$cmd, '-pidfile', PVE::QemuServer::Helpers::vm_pidfile_name($vmid);
++    push @$cmd, '-daemonize';
++
++    # CPU
++    my $sockets = $conf->{sockets} || 1;
++    my $cores = $conf->{cores} || 1;
++    my $maxcpus = $sockets * $cores;
++    my $vcpus = $conf->{vcpus} || $maxcpus;
++    push @$cmd, '-smp', "$vcpus,sockets=$sockets,cores=$cores,maxcpus=$maxcpus";
++
++    if ($forcecpu) {
++        push @$cmd, '-cpu', $forcecpu;
++    } else {
++        push @$cmd, '-cpu', 'host' if $kvm;
++    }
++
++    # Memory — simple static allocation for microvm
++    my $memory = $conf->{memory} || 512;
++    push @$cmd, '-m', "${memory}M";
++
++    # Serial console — microvm primary console
++    my $serial_socket = "/var/run/qemu-server/${vmid}.serial0";
++    push @$cmd, '-chardev', "socket,id=serial0,path=$serial_socket,server=on,wait=off";
++    push @$cmd, '-serial', 'chardev:serial0';
++
++    # Guest agent (optional, via virtio-serial-device for mmio)
++    my $guest_agent = PVE::QemuServer::parse_guest_agent($conf);
++    if ($guest_agent->{enabled}) {
++        my $qgasocket = PVE::QemuServer::Helpers::qmp_socket(
++            { name => "VM $vmid", id => $vmid, type => 'qga' }
++        );
++        push @$cmd, '-chardev', "socket,path=$qgasocket,server=on,wait=off,id=qga0";
++        push @$cmd, '-device', 'virtio-serial-device';
++        push @$cmd, '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0';
++    }
++
++    # Drives — use virtio-blk-device (mmio) instead of PCI
++    my $drive_index = 0;
++    for my $ds (PVE::QemuServer::Drive::valid_drive_names()) {
++        next if !$conf->{$ds};
++        next if $ds =~ m/^(efidisk|tpmstate)/; # not supported on microvm
++
++        my $drive = PVE::QemuServer::Drive::parse_drive($ds, $conf->{$ds});
++        next if !$drive;
++
++        my $volid = $drive->{file};
++        next if !$volid;
++
++        my $path;
++        if ($volid =~ m|^/|) {
++            $path = $volid;
++        } else {
++            $path = PVE::Storage::path($storecfg, $volid);
++        }
++
++        my $drive_cmd = "file=$path,format=raw,id=drive-$ds,if=none";
++        $drive_cmd .= ",aio=io_uring" if -e '/sys/module/io_uring';
++        $drive_cmd .= ",cache=none,detect-zeroes=on";
++
++        push @$cmd, '-drive', $drive_cmd;
++        push @$cmd, '-device', "virtio-blk-device,drive=drive-$ds";
++
++        $drive_index++;
++    }
++
++    # Network — use virtio-net-device (mmio) instead of PCI
++    for (my $i = 0; $i < 6; $i++) {  # max 6 NICs
++        my $netkey = "net$i";
++        next if !$conf->{$netkey};
++
++        my $net = PVE::QemuServer::parse_net($conf->{$netkey});
++        next if !$net;
++
++        my $bridge = $net->{bridge} || 'vmbr0';
++        my $mac = $net->{macaddr};
++        my $tag = $net->{tag};
++        my $firewall = $net->{firewall};
++
++        my $tapname = "tap${vmid}i${i}";
++        my $netdev_cmd = "tap,id=netdev$i,ifname=$tapname,script=/var/lib/qemu-server/pve-bridge,downscript=/var/lib/qemu-server/pve-bridgedown";
++        push @$cmd, '-netdev', $netdev_cmd;
++
++        my $device_cmd = "virtio-net-device,netdev=netdev$i";
++        $device_cmd .= ",mac=$mac" if $mac;
++        push @$cmd, '-device', $device_cmd;
++    }
++
++    # Kernel and initrd from args (user must specify)
++    # The -kernel/-append/-initrd flags are passed through via $conf->{args}
++    if ($conf->{args}) {
++        push @$cmd, split(/\s+/, $conf->{args});
++    }
++
++    # Append devices
++    push @$cmd, @$devices;
++
++    return wantarray ? ($cmd, []) : $cmd;
++}
++
++1;

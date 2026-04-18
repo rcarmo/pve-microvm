@@ -1,0 +1,188 @@
+#!/bin/bash
+# pve-oci-import — convert an OCI container image into a bootable microvm disk image
+#
+# Usage:
+#   pve-oci-import --image alpine:latest --vmid 900 [--storage local-lvm] [--size 2G] [--kernel /path/to/vmlinuz]
+#
+# Requirements: skopeo, umoci, qemu-img, and access to PVE storage
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+DEFAULT_STORAGE="local-lvm"
+DEFAULT_SIZE="2G"
+DEFAULT_KERNEL="/usr/share/pve-microvm/vmlinuz"
+
+usage() {
+    cat <<EOF
+Usage: $PROG --image IMAGE --vmid VMID [OPTIONS]
+
+Convert an OCI container image into a bootable Proxmox microvm disk.
+
+Required:
+  --image IMAGE     OCI image reference (e.g., alpine:latest, docker.io/library/ubuntu:22.04)
+  --vmid VMID       Proxmox VM ID to create the disk for
+
+Options:
+  --storage STORE   PVE storage target (default: $DEFAULT_STORAGE)
+  --size SIZE       Disk size (default: $DEFAULT_SIZE)
+  --kernel PATH     Path to microvm kernel (default: $DEFAULT_KERNEL)
+  --init CMD        Override init command (default: auto-detect from image)
+  --configure       Also configure the VM with qm (creates if needed)
+  --help            Show this help
+
+Examples:
+  # Import Alpine and auto-configure VM 900
+  $PROG --image alpine:latest --vmid 900 --configure
+
+  # Import Ubuntu with custom size
+  $PROG --image ubuntu:22.04 --vmid 901 --size 4G --storage local-lvm
+
+  # Just create the disk image (no VM configuration)
+  $PROG --image python:3.12-alpine --vmid 902
+EOF
+    exit "${1:-0}"
+}
+
+log() { echo "[$PROG] $*"; }
+die() { echo "[$PROG] ERROR: $*" >&2; exit 1; }
+
+# Parse arguments
+IMAGE="" VMID="" STORAGE="$DEFAULT_STORAGE" SIZE="$DEFAULT_SIZE"
+KERNEL="$DEFAULT_KERNEL" INIT="" CONFIGURE=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --image)     IMAGE="$2"; shift 2 ;;
+        --vmid)      VMID="$2"; shift 2 ;;
+        --storage)   STORAGE="$2"; shift 2 ;;
+        --size)      SIZE="$2"; shift 2 ;;
+        --kernel)    KERNEL="$2"; shift 2 ;;
+        --init)      INIT="$2"; shift 2 ;;
+        --configure) CONFIGURE=1; shift ;;
+        --help|-h)   usage 0 ;;
+        *)           die "unknown argument: $1" ;;
+    esac
+done
+
+[[ -n "$IMAGE" ]] || die "missing --image"
+[[ -n "$VMID" ]]  || die "missing --vmid"
+
+# Validate tools
+for tool in skopeo umoci qemu-img mkfs.ext4; do
+    command -v "$tool" >/dev/null 2>&1 || die "required tool not found: $tool"
+done
+
+# Workspace
+WORKDIR=$(mktemp -d /tmp/pve-oci-import.XXXXXX)
+trap 'rm -rf "$WORKDIR"' EXIT
+
+OCI_DIR="$WORKDIR/oci"
+BUNDLE_DIR="$WORKDIR/bundle"
+ROOTFS_DIR="$BUNDLE_DIR/rootfs"
+RAW_IMAGE="$WORKDIR/disk.raw"
+QCOW2_IMAGE="$WORKDIR/disk.qcow2"
+
+# Step 1: Pull OCI image
+log "pulling OCI image: $IMAGE"
+# Normalize image reference
+if [[ "$IMAGE" != *"/"* ]]; then
+    IMAGE="docker.io/library/$IMAGE"
+fi
+skopeo copy "docker://$IMAGE" "oci:$OCI_DIR:latest"
+
+# Step 2: Unpack to rootfs
+log "unpacking image to rootfs"
+umoci unpack --image "$OCI_DIR:latest" "$BUNDLE_DIR"
+
+# Step 3: Prepare rootfs for boot
+log "preparing rootfs for microvm boot"
+
+# Ensure essential directories exist
+for dir in proc sys dev run tmp var/run etc; do
+    mkdir -p "$ROOTFS_DIR/$dir"
+done
+
+# Create minimal /etc/inittab for busybox init (Alpine-style)
+if [ ! -f "$ROOTFS_DIR/etc/inittab" ] && [ -f "$ROOTFS_DIR/bin/busybox" ]; then
+    cat > "$ROOTFS_DIR/etc/inittab" <<'INITTAB'
+::sysinit:/bin/mount -t proc proc /proc
+::sysinit:/bin/mount -t sysfs sys /sys
+::sysinit:/bin/mount -t devtmpfs dev /dev
+::sysinit:/bin/mkdir -p /dev/pts
+::sysinit:/bin/mount -t devpts devpts /dev/pts
+::sysinit:/bin/hostname microvm
+ttyS0::respawn:/bin/sh
+::shutdown:/bin/umount -a -r
+INITTAB
+fi
+
+# Create a minimal init script if no init/inittab exists
+if [ ! -f "$ROOTFS_DIR/sbin/init" ] && [ ! -f "$ROOTFS_DIR/etc/inittab" ]; then
+    cat > "$ROOTFS_DIR/sbin/microvm-init" <<'INIT'
+#!/bin/sh
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sys /sys 2>/dev/null
+mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts && mount -t devpts devpts /dev/pts 2>/dev/null
+hostname microvm
+echo "microvm booted successfully"
+exec /bin/sh
+INIT
+    chmod 755 "$ROOTFS_DIR/sbin/microvm-init"
+fi
+
+# Set up networking defaults
+if [ ! -f "$ROOTFS_DIR/etc/resolv.conf" ]; then
+    echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/etc/resolv.conf"
+fi
+
+# Step 4: Create disk image from rootfs
+log "creating disk image ($SIZE)"
+
+# Calculate size in bytes for dd
+SIZE_BYTES=$(numfmt --from=iec "$SIZE" 2>/dev/null || echo "2147483648")
+
+# Create raw image
+truncate -s "$SIZE" "$RAW_IMAGE"
+mkfs.ext4 -F -L microvm-root -d "$ROOTFS_DIR" "$RAW_IMAGE" >/dev/null 2>&1
+
+# Convert to qcow2 for efficiency
+qemu-img convert -f raw -O qcow2 "$RAW_IMAGE" "$QCOW2_IMAGE"
+
+DISK_SIZE_MB=$(du -sm "$QCOW2_IMAGE" | cut -f1)
+log "disk image created: ${DISK_SIZE_MB}MB (qcow2)"
+
+# Step 5: Import into PVE storage
+log "importing disk to PVE storage: $STORAGE (vmid=$VMID)"
+qm importdisk "$VMID" "$QCOW2_IMAGE" "$STORAGE" --format qcow2 2>/dev/null || \
+    die "failed to import disk — does VM $VMID exist? Try: qm create $VMID --machine microvm --memory 256"
+
+# Step 6: Optionally configure the VM
+if [ "$CONFIGURE" -eq 1 ]; then
+    log "configuring VM $VMID for microvm"
+
+    # Detect init path
+    INIT_PATH="${INIT:-}"
+    if [ -z "$INIT_PATH" ]; then
+        if [ -f "$ROOTFS_DIR/sbin/init" ]; then
+            INIT_PATH="/sbin/init"
+        elif [ -f "$ROOTFS_DIR/sbin/microvm-init" ]; then
+            INIT_PATH="/sbin/microvm-init"
+        else
+            INIT_PATH="/bin/sh"
+        fi
+    fi
+
+    KERNEL_ARGS="console=ttyS0 root=/dev/vda rw init=$INIT_PATH panic=1 quiet"
+
+    qm set "$VMID" \
+        --machine microvm \
+        --args "-kernel $KERNEL -append \"$KERNEL_ARGS\"" \
+        2>/dev/null || log "warning: could not set VM args (configure manually)"
+
+    log "VM $VMID configured. Start with: qm start $VMID"
+    log "Connect with: qm terminal $VMID"
+fi
+
+log "done"
