@@ -284,8 +284,8 @@ sub microvm_config_to_command {
 
         my $tapname = "tap${vmid}i${i}";
         my $netdev_cmd = "tap,id=netdev$i,ifname=$tapname";
-        $netdev_cmd .= ",script=/var/lib/qemu-server/pve-bridge";
-        $netdev_cmd .= ",downscript=/var/lib/qemu-server/pve-bridgedown";
+        $netdev_cmd .= ",script=/usr/libexec/qemu-server/pve-bridge";
+        $netdev_cmd .= ",downscript=/usr/libexec/qemu-server/pve-bridgedown";
         push @$cmd, '-netdev', $netdev_cmd;
 
         my $device_cmd = "virtio-net-device,netdev=netdev$i";
