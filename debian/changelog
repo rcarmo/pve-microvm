@@ -1,3 +1,16 @@
+pve-microvm (0.1.5-1) trixie; urgency=medium
+
+  * Restructure docs: concise README with demo GIF, detailed docs in docs/.
+  * GUI: add 'microvm' to machine type dropdown, auto-set serial/vga.
+  * Ship microvm-init for images without init (e.g., debian:trixie-slim).
+  * Add virtio-balloon-device (mmio) — suppresses PVE balloon warning.
+  * Fix OCI import init detection (systemd vs busybox vs minimal).
+  * Default OCI image: debian:trixie-slim (28 MB).
+  * Allow vga=serial0 for PVE web UI xterm.js console.
+  * End-to-end tested: template → clone → boot → serial console.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 19:00:00 +0000
+
 pve-microvm (0.1.4-1) trixie; urgency=medium
 
   * Set vga=serial0 so PVE web UI opens xterm.js serial console by default.
@@ -15,22 +28,18 @@ pve-microvm (0.1.4-1) trixie; urgency=medium
 pve-microvm (0.1.3-1) trixie; urgency=medium
 
   * Publish .deb to GitHub Packages (ghcr.io) as OCI artifact.
-  * Package now appears in the repo's Packages tab.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 16:45:00 +0000
 
 pve-microvm (0.1.2-1) trixie; urgency=medium
 
   * Fix: override dh_auto_clean to preserve kernel artifact during build.
-  * The .deb now correctly includes /usr/share/pve-microvm/vmlinuz (~9 MB).
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 16:30:00 +0000
 
 pve-microvm (0.1.1-1) trixie; urgency=medium
 
-  * Fix: include vmlinuz kernel in .deb (clean target was deleting it).
-  * Fix: regex patch now produces valid Machine.pm (rewrote patcher in Python).
-  * Tested on live PVE 9.1.7 node (z83ii): qm create/destroy works.
+  * Fix: regex patch rewritten in Python, tested on live PVE 9 node.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 15:30:00 +0000
 
