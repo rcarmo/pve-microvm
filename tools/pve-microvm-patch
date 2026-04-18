@@ -14,6 +14,9 @@ MICROVM_MODULE="/usr/share/perl5/PVE/QemuServer/MicroVM.pm"
 QEMU_SERVER_DIR="/usr/share/perl5/PVE/QemuServer"
 QEMU_SERVER_PM="/usr/share/perl5/PVE/QemuServer.pm"
 MACHINE_PM="${QEMU_SERVER_DIR}/Machine.pm"
+PVE_CSS_DIR="/usr/share/pve-manager/css"
+PVE_JS_DIR="/usr/share/pve-manager/js"
+INDEX_TPL="/usr/share/pve-manager/index.html.tpl"
 
 STAMP="/usr/share/pve-microvm/.applied"
 
@@ -97,6 +100,43 @@ cmd_apply() {
     # Create stamp
     date -Iseconds > "$STAMP"
     log "patches applied successfully"
+
+    # Install UI customization (CSS + JS)
+    install_ui
+}
+
+install_ui() {
+    # Install custom CSS
+    if [ -d "$PVE_CSS_DIR" ]; then
+        log "installing microvm CSS"
+        install -m 644 /usr/share/pve-microvm/ui/pve-microvm.css "$PVE_CSS_DIR/pve-microvm.css"
+    else
+        log "warning: $PVE_CSS_DIR not found, skipping CSS install"
+    fi
+
+    # Install custom JS
+    if [ -d "$PVE_JS_DIR" ]; then
+        log "installing microvm JS"
+        install -m 644 /usr/share/pve-microvm/ui/pve-microvm.js "$PVE_JS_DIR/pve-microvm.js"
+    else
+        log "warning: $PVE_JS_DIR not found, skipping JS install"
+    fi
+
+    # Inject script tag into index.html.tpl if not already present
+    if [ -f "$INDEX_TPL" ]; then
+        if ! grep -q 'pve-microvm.js' "$INDEX_TPL"; then
+            log "injecting microvm JS into index.html.tpl"
+            # Back up
+            cp -a "$INDEX_TPL" "$BACKUP_DIR/index.html.tpl.orig"
+            # Insert before closing </body> or </head>
+            sed -i '/<\/head>/i \    <script type="text/javascript" src="/pve2/js/pve-microvm.js"><\/script>' "$INDEX_TPL"
+            log "UI injection done — reload the PVE web UI to see changes"
+        else
+            log "microvm JS already in index.html.tpl"
+        fi
+    else
+        log "warning: $INDEX_TPL not found, skipping UI injection"
+    fi
 }
 
 cmd_revert() {
@@ -120,6 +160,16 @@ cmd_revert() {
 
     # Remove MicroVM.pm
     rm -f "$MICROVM_MODULE"
+
+    # Remove UI files
+    rm -f "$PVE_CSS_DIR/pve-microvm.css" 2>/dev/null
+    rm -f "$PVE_JS_DIR/pve-microvm.js" 2>/dev/null
+
+    # Restore index.html.tpl if we patched it
+    if [ -f "$BACKUP_DIR/index.html.tpl.orig" ]; then
+        cp -a "$BACKUP_DIR/index.html.tpl.orig" "$INDEX_TPL"
+        log "restored index.html.tpl"
+    fi
 
     # Remove backup and stamp
     rm -rf "$BACKUP_DIR"

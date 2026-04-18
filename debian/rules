@@ -31,6 +31,11 @@ override_dh_auto_install:
 	install -m 644 kernel/base-x86_64-6.1.config $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel/
 	install -m 644 kernel/pve-microvm-overlay.config $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel/
 
+	# Install UI customization files
+	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/ui
+	install -m 644 ui/pve-microvm.css $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/ui/
+	install -m 644 ui/pve-microvm.js $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/ui/
+
 override_dh_auto_build:
 	# Nothing to build
 
