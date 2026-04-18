@@ -1,15 +1,17 @@
-# pve-microvm v0.1.1
+# pve-microvm v0.1.2
 
-Bugfix release — the v0.1.0 .deb was missing the kernel binary and had a
-broken regex patch. Both are fixed.
+The .deb now correctly ships the pre-built microvm kernel (~9 MB).
+
+## Fixes since v0.1.1
+
+- **Kernel actually included in .deb** — `dh_auto_clean` was calling
+  `make distclean` which deleted `kernel/vmlinuz-microvm` before packaging.
+  Fixed by overriding `dh_auto_clean` in `debian/rules`.
 
 ## Fixes since v0.1.0
 
-- **Kernel now included in .deb** — `make clean` was deleting `kernel/vmlinuz-microvm`
-  before `dpkg-buildpackage` could include it. Fixed.
 - **Regex patch rewritten in Python** — the Perl-based patcher produced an
-  unmatched `)` in `Machine.pm`, causing `qm create --machine microvm` to fail.
-  Rewritten with exact string replacement. Tested on live PVE 9 node.
+  unmatched `)` in `Machine.pm`. Rewritten with exact string replacement.
 
 ## Tested on
 

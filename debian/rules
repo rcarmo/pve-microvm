@@ -39,5 +39,10 @@ override_dh_auto_install:
 override_dh_auto_build:
 	# Nothing to build
 
+override_dh_auto_clean:
+	# Do NOT run make clean/distclean — preserve kernel/vmlinuz-microvm
+	# downloaded by CI before the build step
+
+
 override_dh_auto_test:
 	# No tests during build

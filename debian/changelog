@@ -1,3 +1,10 @@
+pve-microvm (0.1.2-1) trixie; urgency=medium
+
+  * Fix: override dh_auto_clean to preserve kernel artifact during build.
+  * The .deb now correctly includes /usr/share/pve-microvm/vmlinuz (~9 MB).
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 16:30:00 +0000
+
 pve-microvm (0.1.1-1) trixie; urgency=medium
 
   * Fix: include vmlinuz kernel in .deb (clean target was deleting it).
