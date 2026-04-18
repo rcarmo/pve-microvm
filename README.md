@@ -201,7 +201,8 @@ No data or existing VMs are affected.
 # 1. Create a microvm guest
 qm create 900 --machine microvm --memory 256 --cores 1 \
   --name my-microvm \
-  --net0 virtio,bridge=vmbr0
+  --net0 virtio,bridge=vmbr0 \
+  --serial0 socket
 
 # 2. Import an OCI image as the root disk
 pve-oci-import --image alpine:latest --vmid 900 --configure
@@ -462,7 +463,7 @@ to shut itself down (e.g., via a command sent over serial or SSH).
 | `usb0`–`usb9` | No USB bus |
 | `hostpci0`–`hostpci3` | No PCI bus |
 | `tpmstate0` | No TPM |
-| `vmgenid` | No ACPI |
+| `vmgenid` | No ACPI (silently ignored if auto-set by `qm create`) |
 | `rng0` | No PCI bus for virtio-rng-pci |
 | `parallel0`–`parallel2` | No ISA parallel port in microvm mode |
 

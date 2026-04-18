@@ -67,6 +67,14 @@ sub microvm_validate_config {
             if defined($conf->{$opt});
     }
 
+    # Silently strip options that qm create auto-sets but microvm doesn't use
+    for my $opt (@IGNORED_OPTIONS) {
+        delete $conf->{$opt} if defined($conf->{$opt});
+    }
+
+    # Ensure serial0 is set so `qm terminal` can find the serial interface
+    $conf->{serial0} = 'socket' if !defined($conf->{serial0});
+
     # microvm requires a kernel specified in args
     die "microvm requires a kernel — set 'args: -kernel /path/to/vmlinuz' in VM config\n"
         if !$conf->{args} || $conf->{args} !~ m/-kernel/;
