@@ -5,27 +5,39 @@
 # (Firecracker base + PVE overlay), and produces a vmlinuz binary.
 #
 # Usage:
-#   ./build-kernel.sh [--version 6.1.128] [--output /path/to/vmlinuz]
+#   ./build-kernel.sh [--version 6.12.22] [--output /path/to/vmlinuz]
 #
 # Requirements: build-essential, flex, bison, libelf-dev, bc, libssl-dev, wget
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ORIG_DIR="$(pwd)"
 DEFAULT_VERSION="6.12.22"
 DEFAULT_OUTPUT="${SCRIPT_DIR}/vmlinuz-microvm"
 
-VERSION="${1:-$DEFAULT_VERSION}"
-OUTPUT="${2:-$DEFAULT_OUTPUT}"
+VERSION="$DEFAULT_VERSION"
+OUTPUT=""
 
-# Strip --version/--output flags if used
+# Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version) VERSION="$2"; shift 2 ;;
         --output)  OUTPUT="$2"; shift 2 ;;
-        *)         shift ;;
+        -h|--help)
+            echo "Usage: $0 [--version 6.12.22] [--output /path/to/vmlinuz]"
+            exit 0
+            ;;
+        *)  shift ;;
     esac
 done
+
+# Resolve output path (make relative paths relative to the caller's cwd)
+if [ -z "$OUTPUT" ]; then
+    OUTPUT="$DEFAULT_OUTPUT"
+elif [[ "$OUTPUT" != /* ]]; then
+    OUTPUT="${ORIG_DIR}/${OUTPUT}"
+fi
 
 MAJOR=$(echo "$VERSION" | cut -d. -f1)
 BUILD_DIR="/tmp/pve-microvm-kernel-build"

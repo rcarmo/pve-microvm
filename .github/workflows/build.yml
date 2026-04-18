@@ -30,8 +30,9 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          ./build-kernel.sh --version 6.12.22 --output vmlinuz-microvm
-          ls -lh vmlinuz-microvm
+          ./build-kernel.sh --version 6.12.22 --output "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
+          ls -lh "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
+          file "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
 
       - name: Upload kernel artifact
         uses: actions/upload-artifact@v4
