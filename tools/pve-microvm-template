@@ -1,0 +1,233 @@
+#!/bin/bash
+# pve-microvm-template — fetch an OCI image and create a PVE VM template
+#
+# Creates a ready-to-clone microvm template from an OCI container image.
+# The template VM can be cloned instantly to spin up new microvm guests.
+#
+# Usage:
+#   pve-microvm-template                          # use defaults from config
+#   pve-microvm-template --image ubuntu:22.04     # override image
+#   pve-microvm-template --vmid 9001              # override template VMID
+#   pve-microvm-template --list                   # list existing microvm templates
+#
+# After creation:
+#   qm clone 9000 <new-vmid> --name my-sandbox    # instant linked clone
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+CONF="/etc/pve-microvm/images.conf"
+CONF_DEFAULT="/usr/share/pve-microvm/microvm-images.conf"
+CACHE_DIR="/var/cache/pve-microvm"
+
+# Defaults (overridden by config or flags)
+IMAGE="alpine:3.21"
+TEMPLATE_VMID="9000"
+TEMPLATE_NAME="microvm-alpine"
+STORAGE="local-lvm"
+DISK_SIZE="1G"
+MEMORY="256"
+CORES="1"
+BRIDGE="vmbr0"
+TAGS="microvm,template"
+KERNEL="/usr/share/pve-microvm/vmlinuz"
+APPEND="console=ttyS0 root=/dev/vda rw quiet"
+
+log() { echo "[$PROG] $*"; }
+die() { echo "[$PROG] ERROR: $*" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: $PROG [OPTIONS]
+
+Create a PVE VM template from an OCI image for instant microvm cloning.
+
+Options:
+  --image IMAGE      OCI image (default: $IMAGE)
+  --vmid VMID        Template VM ID (default: $TEMPLATE_VMID)
+  --name NAME        Template name (default: $TEMPLATE_NAME)
+  --storage STORE    PVE storage (default: $STORAGE)
+  --disk-size SIZE   Disk size (default: $DISK_SIZE)
+  --list             List existing microvm templates
+  --refresh          Re-fetch image even if template exists
+  --help             Show this help
+
+After creation:
+  qm clone $TEMPLATE_VMID <new-vmid> --name my-sandbox
+  qm set <new-vmid> --memory 512   # optionally override resources
+  qm start <new-vmid>
+  qm terminal <new-vmid>
+EOF
+    exit "${1:-0}"
+}
+
+# Load config file
+load_config() {
+    local conf="${CONF}"
+    [ -f "$conf" ] || conf="$CONF_DEFAULT"
+    [ -f "$conf" ] || return 0
+
+    while IFS='=' read -r key value; do
+        key=$(echo "$key" | tr -d ' ')
+        value=$(echo "$value" | sed 's/^ *//' | sed 's/ *$//')
+        case "$key" in
+            image)          IMAGE="$value" ;;
+            template_vmid)  TEMPLATE_VMID="$value" ;;
+            template_name)  TEMPLATE_NAME="$value" ;;
+            storage)        STORAGE="$value" ;;
+            disk_size)      DISK_SIZE="$value" ;;
+            memory)         MEMORY="$value" ;;
+            cores)          CORES="$value" ;;
+            bridge)         BRIDGE="$value" ;;
+            tags)           TAGS="$value" ;;
+            kernel)         KERNEL="$value" ;;
+            append)         APPEND="$value" ;;
+        esac
+    done < <(grep -v '^#\|^\[' "$conf" | grep '=')
+}
+
+list_templates() {
+    log "Existing microvm templates:"
+    qm list 2>/dev/null | while read -r vmid name status mem pid; do
+        [ "$vmid" = "VMID" ] && continue
+        conf="/etc/pve/qemu-server/${vmid}.conf"
+        [ -f "$conf" ] || continue
+        if grep -q 'machine:.*microvm' "$conf" 2>/dev/null && grep -q 'template:' "$conf" 2>/dev/null; then
+            echo "  VMID $vmid  name=$name  status=$status"
+        fi
+    done
+}
+
+REFRESH=0
+ACTION="create"
+
+# Parse args
+load_config
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --image)     IMAGE="$2"; shift 2 ;;
+        --vmid)      TEMPLATE_VMID="$2"; shift 2 ;;
+        --name)      TEMPLATE_NAME="$2"; shift 2 ;;
+        --storage)   STORAGE="$2"; shift 2 ;;
+        --disk-size) DISK_SIZE="$2"; shift 2 ;;
+        --list)      ACTION="list"; shift ;;
+        --refresh)   REFRESH=1; shift ;;
+        --help|-h)   usage 0 ;;
+        *)           die "unknown argument: $1" ;;
+    esac
+done
+
+if [ "$ACTION" = "list" ]; then
+    list_templates
+    exit 0
+fi
+
+# Check if template already exists
+if qm config "$TEMPLATE_VMID" >/dev/null 2>&1; then
+    if [ "$REFRESH" -eq 0 ]; then
+        log "Template VM $TEMPLATE_VMID already exists. Use --refresh to recreate."
+        exit 0
+    fi
+    log "Removing existing template $TEMPLATE_VMID"
+    qm destroy "$TEMPLATE_VMID" --purge 2>/dev/null || true
+fi
+
+# Validate tools
+for tool in skopeo umoci qemu-img mkfs.ext4; do
+    command -v "$tool" >/dev/null 2>&1 || die "required tool not found: $tool"
+done
+
+[ -f "$KERNEL" ] || die "kernel not found at $KERNEL (install pve-microvm package first)"
+
+log "Creating microvm template from $IMAGE"
+log "  VMID:    $TEMPLATE_VMID"
+log "  Name:    $TEMPLATE_NAME"
+log "  Storage: $STORAGE"
+log "  Disk:    $DISK_SIZE"
+
+# Work directory
+mkdir -p "$CACHE_DIR"
+WORKDIR=$(mktemp -d "$CACHE_DIR/build.XXXXXX")
+trap 'rm -rf "$WORKDIR"' EXIT
+
+OCI_DIR="$WORKDIR/oci"
+BUNDLE_DIR="$WORKDIR/bundle"
+ROOTFS_DIR="$BUNDLE_DIR/rootfs"
+
+# Step 1: Pull image
+log "Pulling $IMAGE..."
+FULL_IMAGE="$IMAGE"
+[[ "$FULL_IMAGE" == *"/"* ]] || FULL_IMAGE="docker.io/library/$FULL_IMAGE"
+skopeo copy "docker://$FULL_IMAGE" "oci:$OCI_DIR:latest" >/dev/null 2>&1
+
+# Step 2: Unpack
+log "Unpacking rootfs..."
+umoci unpack --image "$OCI_DIR:latest" "$BUNDLE_DIR" >/dev/null 2>&1
+
+# Step 3: Prepare for microvm boot
+log "Preparing rootfs..."
+for dir in proc sys dev dev/pts run tmp; do
+    mkdir -p "$ROOTFS_DIR/$dir"
+done
+
+# Ensure an init exists
+if [ ! -f "$ROOTFS_DIR/sbin/init" ]; then
+    if [ -f "$ROOTFS_DIR/bin/busybox" ]; then
+        ln -sf ../bin/busybox "$ROOTFS_DIR/sbin/init"
+    fi
+fi
+
+# Busybox inittab for Alpine-style images
+if [ -f "$ROOTFS_DIR/bin/busybox" ] && [ ! -f "$ROOTFS_DIR/etc/inittab" ]; then
+    cat > "$ROOTFS_DIR/etc/inittab" <<'INITTAB'
+::sysinit:/bin/mount -t proc proc /proc
+::sysinit:/bin/mount -t sysfs sys /sys
+::sysinit:/bin/mount -t devtmpfs dev /dev
+::sysinit:/bin/mkdir -p /dev/pts
+::sysinit:/bin/mount -t devpts devpts /dev/pts
+::sysinit:/bin/hostname microvm
+ttyS0::respawn:/bin/sh
+::shutdown:/bin/umount -a -r
+INITTAB
+fi
+
+# DNS defaults
+[ -f "$ROOTFS_DIR/etc/resolv.conf" ] || echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/etc/resolv.conf"
+
+# Step 4: Create disk image
+log "Creating $DISK_SIZE disk..."
+RAW="$WORKDIR/disk.raw"
+truncate -s "$DISK_SIZE" "$RAW"
+mkfs.ext4 -F -L microvm-root -d "$ROOTFS_DIR" "$RAW" >/dev/null 2>&1
+
+QCOW2="$WORKDIR/disk.qcow2"
+qemu-img convert -f raw -O qcow2 "$RAW" "$QCOW2"
+
+# Step 5: Create template VM
+log "Creating template VM $TEMPLATE_VMID..."
+qm create "$TEMPLATE_VMID" \
+    --machine microvm \
+    --name "$TEMPLATE_NAME" \
+    --memory "$MEMORY" \
+    --cores "$CORES" \
+    --net0 "virtio,bridge=$BRIDGE" \
+    --serial0 socket \
+    --tags "$TAGS" \
+    --args "-kernel $KERNEL -append \"$APPEND\""
+
+# Step 6: Import disk
+log "Importing disk to $STORAGE..."
+qm importdisk "$TEMPLATE_VMID" "$QCOW2" "$STORAGE" --format qcow2 >/dev/null 2>&1
+qm set "$TEMPLATE_VMID" --scsi0 "$STORAGE:vm-${TEMPLATE_VMID}-disk-0"
+
+# Step 7: Convert to template
+log "Converting to template..."
+qm template "$TEMPLATE_VMID"
+
+log ""
+log "=== Template ready ==="
+log ""
+log "Clone a new microvm:"
+log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-sandbox --full"
+log "  qm start <new-vmid>"
+log "  qm terminal <new-vmid>"

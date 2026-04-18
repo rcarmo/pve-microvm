@@ -12,13 +12,15 @@ override_dh_auto_install:
 	install -m 755 tools/pve-microvm-patch $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/
 	install -m 644 tools/MicroVM.pm $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/
 
-	# Install OCI import tool
+	# Install OCI import and template tools
 	install -d $(CURDIR)/debian/pve-microvm/usr/bin
 	install -m 755 tools/pve-oci-import $(CURDIR)/debian/pve-microvm/usr/bin/
+	install -m 755 tools/pve-microvm-template $(CURDIR)/debian/pve-microvm/usr/bin/
 
-	# Install microvm defaults
+	# Install microvm defaults and image config
 	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm
 	install -m 644 doc/microvm-defaults.conf $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/
+	install -m 644 doc/microvm-images.conf $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/
 
 	# Install microvm kernel (if present — built by CI or build-kernel.sh)
 	if [ -f kernel/vmlinuz-microvm ]; then \
