@@ -87,6 +87,9 @@ sub microvm_validate_config {
     # Ensure serial0 is set so `qm terminal` can find the serial interface
     $conf->{serial0} = 'socket' if !defined($conf->{serial0});
 
+    # Disable balloon in config (microvm has no balloon device)
+    $conf->{balloon} = 0;
+
     # microvm requires a kernel specified in args
     die "microvm requires a kernel — set 'args: -kernel /path/to/vmlinuz' in VM config\n"
         if !$conf->{args} || $conf->{args} !~ m/-kernel/;
@@ -136,6 +139,12 @@ sub microvm_config_to_command {
     # rtc=on         — needed for timekeeping
     # pit/pic=off    — not needed, reduces attack surface
     push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on';
+
+    # Use qboot for instant kernel loading (no SeaBIOS banner)
+    my $qboot = '/usr/share/kvm/qboot.rom';
+    if (-f $qboot) {
+        push @$cmd, '-bios', $qboot;
+    }
 
     push @$cmd, '-no-shutdown';
     push @$cmd, '-nodefaults';
