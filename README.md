@@ -2,14 +2,52 @@
 
 A Debian package that adds QEMU `microvm` machine type support to Proxmox VE.
 
+> **⚠️ Highly experimental.** This project patches `qemu-server` internals and
+> has not been tested in production. Use at your own risk. Back up your Proxmox
+> configuration before installing. The patches are fully reversible — uninstalling
+> the package restores the original files — but you should treat this as a
+> proof-of-concept until it has been validated on real workloads.
+
 microvm guests boot in under 200 ms, use virtio-mmio devices instead of PCI,
 and provide full KVM hardware isolation with a minimal attack surface — all
 managed through the standard `qm` CLI and (in future releases) the Proxmox web UI.
 
 ---
 
+## Motivation
+
+We needed something between LXC containers and full QEMU VMs for running
+coding agents and other semi-trusted workloads.
+
+**LXC** is fast and lightweight, but shares the host kernel. A misbehaving
+agent — or a supply-chain exploit in an npm/pip install — runs with the same
+kernel attack surface as every other container on the node. That's fine for
+trusted services, but not for workloads that routinely `curl | bash` arbitrary
+code from the internet.
+
+**Standard QEMU VMs** provide full hardware isolation, but they take seconds
+to boot, need BIOS/UEFI firmware, allocate a VGA framebuffer, set up PCI
+buses, and carry the overhead of an entire emulated PC. Spinning one up per
+task or per agent session is wasteful.
+
+**QEMU microvm** sits in the sweet spot:
+
+| | LXC | microvm | Standard VM |
+|---|---|---|---|
+| Isolation | Namespace (shared kernel) | KVM (own kernel) | KVM (own kernel) |
+| Boot time | ~50 ms | < 200 ms | 2–10 s |
+| Overhead | Minimal | Minimal | Moderate |
+| Attack surface | Broad (host kernel) | Minimal (virtio-mmio only) | Broad (emulated PC) |
+| Untrusted code | ⚠️ risky | ✅ safe | ✅ safe |
+
+So: **hardware-isolated VMs with container-like speed**, managed through the
+same Proxmox tools you already use. That's what this project enables.
+
+---
+
 ## Table of contents
 
+- [Motivation](#motivation)
 - [Why microvm](#why-microvm)
 - [Prior art](#prior-art)
 - [Requirements](#requirements)
