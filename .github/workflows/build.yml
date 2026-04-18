@@ -1,11 +1,8 @@
-name: Build
+name: Build and Release
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
-    branches: [main]
 
 jobs:
   build-kernel:
@@ -88,7 +85,6 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-24.04
     needs: [build-kernel, build-deb]
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
@@ -112,5 +108,5 @@ jobs:
           files: |
             release/vmlinuz-microvm
             release/pve-microvm_*.deb
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
           draft: false
