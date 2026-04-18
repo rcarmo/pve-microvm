@@ -99,12 +99,22 @@ umoci unpack --image "$OCI_DIR:latest" "$BUNDLE_DIR"
 log "preparing rootfs for microvm boot"
 
 # Ensure essential directories exist
-for dir in proc sys dev run tmp var/run etc; do
+for dir in proc sys dev dev/pts run tmp var/run etc; do
     mkdir -p "$ROOTFS_DIR/$dir"
 done
 
+# For images with systemd: configure serial console
+if [ -d "$ROOTFS_DIR/lib/systemd/system" ]; then
+    log "systemd detected — configuring for serial console"
+    mkdir -p "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"
+    ln -sf /lib/systemd/system/serial-getty@.service \
+        "$ROOTFS_DIR/etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service" 2>/dev/null || true
+    # Set root password to empty for first login
+    sed -i 's|^root:[^:]*:|root::|' "$ROOTFS_DIR/etc/shadow" 2>/dev/null || true
+fi
+
 # Create minimal /etc/inittab for busybox init (Alpine-style)
-if [ ! -f "$ROOTFS_DIR/etc/inittab" ] && [ -f "$ROOTFS_DIR/bin/busybox" ]; then
+if [ ! -f "$ROOTFS_DIR/etc/inittab" ] && [ -f "$ROOTFS_DIR/bin/busybox" ] && [ ! -d "$ROOTFS_DIR/lib/systemd" ]; then
     cat > "$ROOTFS_DIR/etc/inittab" <<'INITTAB'
 ::sysinit:/bin/mount -t proc proc /proc
 ::sysinit:/bin/mount -t sysfs sys /sys
@@ -117,19 +127,23 @@ ttyS0::respawn:/bin/sh
 INITTAB
 fi
 
-# Create a minimal init script if no init/inittab exists
-if [ ! -f "$ROOTFS_DIR/sbin/init" ] && [ ! -f "$ROOTFS_DIR/etc/inittab" ]; then
-    cat > "$ROOTFS_DIR/sbin/microvm-init" <<'INIT'
+# Ensure an init exists
+if [ ! -f "$ROOTFS_DIR/sbin/init" ] && [ ! -L "$ROOTFS_DIR/sbin/init" ]; then
+    if [ -f "$ROOTFS_DIR/bin/busybox" ]; then
+        ln -sf ../bin/busybox "$ROOTFS_DIR/sbin/init"
+    elif [ -f "$ROOTFS_DIR/usr/bin/bash" ] || [ -f "$ROOTFS_DIR/bin/bash" ]; then
+        cat > "$ROOTFS_DIR/sbin/init" <<'SHELLINIT'
 #!/bin/sh
 mount -t proc proc /proc 2>/dev/null
 mount -t sysfs sys /sys 2>/dev/null
 mount -t devtmpfs dev /dev 2>/dev/null
 mkdir -p /dev/pts && mount -t devpts devpts /dev/pts 2>/dev/null
 hostname microvm
-echo "microvm booted successfully"
-exec /bin/sh
-INIT
-    chmod 755 "$ROOTFS_DIR/sbin/microvm-init"
+echo "pve-microvm booted"
+exec /bin/bash </dev/ttyS0 >/dev/ttyS0 2>&1 || exec /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1
+SHELLINIT
+        chmod 755 "$ROOTFS_DIR/sbin/init"
+    fi
 fi
 
 # Set up networking defaults
