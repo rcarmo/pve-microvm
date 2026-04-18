@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEFAULT_VERSION="6.1.128"
+DEFAULT_VERSION="6.12.22"
 DEFAULT_OUTPUT="${SCRIPT_DIR}/vmlinuz-microvm"
 
 VERSION="${1:-$DEFAULT_VERSION}"

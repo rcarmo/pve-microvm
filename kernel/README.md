@@ -5,7 +5,9 @@ pve-microvm guests.
 
 ## Choice of base config
 
-We use the **Firecracker `microvm-kernel-ci-x86_64-6.1` config** as the base.
+We use the **Firecracker `microvm-kernel-ci-x86_64-6.1` config** as the base,
+targeting **kernel 6.12 LTS** for builds (forward-compatible with PVE 9's
+host kernel 6.14).
 
 ### Why Firecracker's config?
 
@@ -99,7 +101,7 @@ cd kernel/
 ./build-kernel.sh
 
 # Or with a specific kernel version:
-./build-kernel.sh --version 6.1.128 --output ./vmlinuz-microvm
+./build-kernel.sh --version 6.12.22 --output ./vmlinuz-microvm
 ```
 
 ### Install on Proxmox node

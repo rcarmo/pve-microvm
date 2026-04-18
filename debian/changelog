@@ -1,8 +1,10 @@
-pve-microvm (0.1.0-1) bookworm; urgency=medium
+pve-microvm (0.1.0-1) trixie; urgency=medium
 
-  * Initial release.
+  * Initial release targeting Proxmox VE 9.0 (Debian Trixie).
+  * Tested against qemu-server 9.1.6, pve-qemu-kvm 10.2.1 (QEMU 10.2).
   * Patch qemu-server Machine.pm to allow microvm machine type.
-  * Add microvm-aware command generation to config_to_command.
+  * Add PVE::QemuServer::MicroVM module for microvm command generation.
   * Ship pve-oci-import helper for OCI-to-microvm disk conversion.
+  * Include Firecracker-based kernel config with PVE overlay.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 13:00:00 +0000

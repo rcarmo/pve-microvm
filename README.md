@@ -82,13 +82,26 @@ As of April 2026, **nobody has done this before**:
 
 ## Requirements
 
-- **Proxmox VE 8.x** (Debian Bookworm based)
-- **`qemu-server` ≥ 9.0** (ships with PVE 8)
-- **`pve-qemu-kvm` ≥ 9.0** (the PVE-patched QEMU, which includes microvm)
-- **KVM support** (`/dev/kvm` available on the host)
-- **`skopeo`** — for pulling OCI images (used by `pve-oci-import`)
-- **`umoci`** — for unpacking OCI images to a rootfs
-- **`qemu-utils`** — for `qemu-img` (disk conversion)
+### Tested platform
+
+| Component | Version | Notes |
+|---|---|---|
+| **Proxmox VE** | 9.0 | Debian Trixie based |
+| **`qemu-server`** | 9.1.6 | Patched by this package |
+| **`pve-qemu-kvm`** | 10.2.1 | QEMU 10.2 (includes microvm machine type) |
+| **Host kernel** | 6.14.x | PVE 9 default |
+| **Guest kernel** | 6.12 LTS | Built from Firecracker config + PVE overlay |
+| **Debian** | Trixie (13) | Base OS |
+
+### Dependencies
+
+- **`pve-qemu-kvm` ≥ 10.0** (QEMU with microvm support)
+- **`qemu-server` ≥ 9.0** (PVE VM management)
+- **`pve-manager` ≥ 9.0** (recommended, for future UI patches)
+- **`skopeo`** — OCI image pulling (used by `pve-oci-import`)
+- **`umoci`** — OCI image unpacking
+- **`qemu-utils`** — `qemu-img` for disk conversion
+- **KVM** — `/dev/kvm` available on the host
 - **A microvm-compatible Linux kernel** — see [Kernel guide](#kernel-guide)
 
 ---
@@ -102,7 +115,7 @@ As of April 2026, **nobody has done this before**:
 cd pve-microvm
 dpkg-buildpackage -us -uc -b
 
-# Install on your Proxmox node
+# Install on your Proxmox VE 9.x node
 dpkg -i ../pve-microvm_0.1.0-1_all.deb
 apt-get install -f   # resolve any missing dependencies
 ```
@@ -834,7 +847,7 @@ pve-oci-import --image alpine:latest --vmid <vmid>
 - [x] Serial console via `qm terminal`
 - [x] `pve-oci-import` helper
 - [x] Debian package scaffolding
-- [ ] Testing on real Proxmox VE node
+- [ ] Testing on real Proxmox VE 9.0 node (qemu-server 9.1.6, QEMU 10.2)
 
 ### v0.2 — UI + kernel
 
