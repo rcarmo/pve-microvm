@@ -28,7 +28,7 @@ no VGA/ACPI/USB, and boot via direct kernel loading.
 
 # Features that are NOT supported on microvm — error if explicitly set
 my @UNSUPPORTED_OPTIONS = qw(
-    bios vga tablet audio0 hostpci0 hostpci1 hostpci2 hostpci3
+    bios tablet audio0 hostpci0 hostpci1 hostpci2 hostpci3
     usb0 usb1 usb2 usb3 usb4 usb5 usb6 usb7 usb8 usb9
     tpmstate0 efidisk0 rng0 parallel0 parallel1 parallel2
 );
@@ -37,6 +37,9 @@ my @UNSUPPORTED_OPTIONS = qw(
 my @IGNORED_OPTIONS = qw(
     vmgenid smbios1
 );
+
+# VGA values allowed on microvm (serial console redirect, or none)
+my %ALLOWED_VGA = map { $_ => 1 } qw(serial0 serial1 serial2 serial3 none);
 
 =head2 is_microvm($conf)
 
@@ -65,6 +68,15 @@ sub microvm_validate_config {
     for my $opt (@UNSUPPORTED_OPTIONS) {
         die "option '$opt' is not supported with microvm machine type\n"
             if defined($conf->{$opt});
+    }
+
+    # VGA: only serial redirect or none is allowed (no actual VGA hardware)
+    if (defined($conf->{vga})) {
+        my $vga_type = $conf->{vga};
+        $vga_type =~ s/,.*//;  # strip options like memory=X
+        if (!$ALLOWED_VGA{$vga_type}) {
+            die "vga '$vga_type' is not supported with microvm — use 'serial0' or 'none'\n";
+        }
     }
 
     # Silently strip options that qm create auto-sets but microvm doesn't use
