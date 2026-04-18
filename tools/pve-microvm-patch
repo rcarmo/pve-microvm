@@ -8,7 +8,6 @@
 
 set -euo pipefail
 
-PATCH_DIR="/usr/share/pve-microvm/patches"
 BACKUP_DIR="/usr/share/pve-microvm/backup"
 MICROVM_MODULE="/usr/share/perl5/PVE/QemuServer/MicroVM.pm"
 QEMU_SERVER_DIR="/usr/share/perl5/PVE/QemuServer"
@@ -29,11 +28,9 @@ cmd_apply() {
         return 0
     fi
 
-    # Verify target files exist
-    [ -f "$MACHINE_PM" ]    || die "Machine.pm not found at $MACHINE_PM"
+    [ -f "$MACHINE_PM" ]     || die "Machine.pm not found at $MACHINE_PM"
     [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
 
-    # Create backup directory
     mkdir -p "$BACKUP_DIR"
 
     # Back up originals
@@ -41,72 +38,115 @@ cmd_apply() {
     cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
     cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
 
-    # Patch 01: Machine.pm — add microvm to machine type regex and base type detection
-    log "patching Machine.pm — adding microvm machine type"
-    local machine_tmp=$(mktemp)
-    cp "$MACHINE_PM" "$machine_tmp"
+    # ── Patch Machine.pm ─────────────────────────────────────────
+    log "patching Machine.pm"
 
-    # Add microvm to the regex pattern
-    sed -i "s|virt(?:-\\\d+(\\\.\\\d+)+)?(\\\+pve\\\d+)?)|virt(?:-\\\\d+(\\\\\.\\\\d+)+)?(\\\\+pve\\\\d+)?|microvm)|" "$machine_tmp" 2>/dev/null || true
+    # 1. Add |microvm to the machine type regex
+    #    Before: ...virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)
+    #    After:  ...virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)
+    python3 -c "
+import re, sys
+path = '$MACHINE_PM'
+with open(path) as f:
+    text = f.read()
 
-    # Simpler approach: use perl to do the patching
-    perl -i -pe '
-        # Add microvm to the machine type regex
-        if (/pattern\s*=>/ .. /maxLength/) {
-            s{(\Qvirt(?:-\d+(\.\d+)+)?(\+pve\d+)?\E\))}{$1|microvm)}
-                if /virt.*pve/;
-        }
-    ' "$machine_tmp"
+# Insert |microvm before the final ) of the outer regex group
+old = r\"virt(?:-\\d+(\\.\\.\\d+)+)?(\\+pve\\d+)?)'\"
+# Actually just do exact string replacement on the known pattern line
+text = text.replace(
+    r\"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?)\",
+    r\"virt(?:-\d+(\.\d+)+)?(\+pve\d+)?|microvm)\",
+    1  # only first occurrence
+)
 
-    # Add microvm to machine_base_type
-    perl -i -pe '
-        if (/return .virt. if.*virt/) {
-            $_ .= qq{    return '\''microvm'\'' if \$machine_type =~ m/^microvm/;\n};
-        }
-    ' "$machine_tmp"
+with open(path, 'w') as f:
+    f.write(text)
+print('  regex patched')
+"
 
-    # Add microvm to supported_machine_flags
-    perl -i -pe '
-        if (/virt\s*=>\s*\{\}/) {
-            $_ .= qq{    microvm => {},\n};
-        }
-    ' "$machine_tmp"
+    # 2. Add microvm to machine_base_type()
+    python3 -c "
+path = '$MACHINE_PM'
+with open(path) as f:
+    lines = f.readlines()
 
-    cp "$machine_tmp" "$MACHINE_PM"
-    rm -f "$machine_tmp"
+out = []
+for line in lines:
+    out.append(line)
+    if \"return 'virt' if\" in line and 'virt' in line:
+        indent = '    '
+        out.append(indent + \"return 'microvm' if \\\$machine_type =~ m/^microvm/;\\n\")
 
-    # Patch 02: Install MicroVM.pm module
+with open(path, 'w') as f:
+    f.writelines(out)
+print('  machine_base_type patched')
+"
+
+    # 3. Add microvm to supported_machine_flags
+    python3 -c "
+path = '$MACHINE_PM'
+with open(path) as f:
+    lines = f.readlines()
+
+out = []
+for line in lines:
+    out.append(line)
+    if 'virt => {}' in line:
+        out.append('    microvm => {},\\n')
+
+with open(path, 'w') as f:
+    f.writelines(out)
+print('  machine_flags patched')
+"
+
+    # ── Install MicroVM.pm ───────────────────────────────────────
     log "installing MicroVM.pm module"
     install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
 
-    # Patch 03: QemuServer.pm — add microvm delegation
-    log "patching QemuServer.pm — adding microvm delegation"
-    perl -i -pe '
-        # Add use statement for MicroVM near the other use statements
-        if (/^use PVE::QemuServer::Machine;/ && !$added_use) {
-            $_ .= "use PVE::QemuServer::MicroVM;\n";
-            $added_use = 1;
-        }
-        # Add microvm check at the start of config_to_command
-        if (/^sub config_to_command \{/ && !$added_check) {
-            $_ .= "    my (\$storecfg_tmp, \$vmid_tmp, \$conf_tmp, \$defaults_tmp, \$options_tmp) = \@_;\n";
-            $_ .= "    if (PVE::QemuServer::MicroVM::is_microvm(\$conf_tmp)) {\n";
-            $_ .= "        return PVE::QemuServer::MicroVM::microvm_config_to_command(\@_);\n";
-            $_ .= "    }\n";
-            $added_check = 1;
-        }
-    ' "$QEMU_SERVER_PM"
+    # ── Patch QemuServer.pm ──────────────────────────────────────
+    log "patching QemuServer.pm"
+    python3 -c "
+path = '$QEMU_SERVER_PM'
+with open(path) as f:
+    lines = f.readlines()
 
-    # Create stamp
+out = []
+added_use = False
+added_check = False
+for line in lines:
+    # Add use statement
+    if not added_use and line.startswith('use PVE::QemuServer::Machine;'):
+        out.append(line)
+        out.append('use PVE::QemuServer::MicroVM;\\n')
+        added_use = True
+        continue
+
+    # Add microvm delegation at start of config_to_command
+    if not added_check and line.startswith('sub config_to_command {'):
+        out.append(line)
+        out.append('    # pve-microvm: delegate to microvm command builder\\n')
+        out.append('    if (PVE::QemuServer::MicroVM::is_microvm((\@_)[2])) {\\n')
+        out.append('        return PVE::QemuServer::MicroVM::microvm_config_to_command(\@_);\\n')
+        out.append('    }\\n')
+        added_check = True
+        continue
+
+    out.append(line)
+
+with open(path, 'w') as f:
+    f.writelines(out)
+print('  QemuServer.pm patched (use: ' + str(added_use) + ', delegate: ' + str(added_check) + ')')
+"
+
+    # ── Install UI ───────────────────────────────────────────────
+    install_ui
+
+    # ── Stamp ────────────────────────────────────────────────────
     date -Iseconds > "$STAMP"
     log "patches applied successfully"
-
-    # Install UI customization (CSS + JS)
-    install_ui
 }
 
 install_ui() {
-    # Install custom CSS
     if [ -d "$PVE_CSS_DIR" ]; then
         log "installing microvm CSS"
         install -m 644 /usr/share/pve-microvm/ui/pve-microvm.css "$PVE_CSS_DIR/pve-microvm.css"
@@ -114,7 +154,6 @@ install_ui() {
         log "warning: $PVE_CSS_DIR not found, skipping CSS install"
     fi
 
-    # Install custom JS
     if [ -d "$PVE_JS_DIR" ]; then
         log "installing microvm JS"
         install -m 644 /usr/share/pve-microvm/ui/pve-microvm.js "$PVE_JS_DIR/pve-microvm.js"
@@ -122,13 +161,10 @@ install_ui() {
         log "warning: $PVE_JS_DIR not found, skipping JS install"
     fi
 
-    # Inject script tag into index.html.tpl if not already present
     if [ -f "$INDEX_TPL" ]; then
         if ! grep -q 'pve-microvm.js' "$INDEX_TPL"; then
             log "injecting microvm JS into index.html.tpl"
-            # Back up
             cp -a "$INDEX_TPL" "$BACKUP_DIR/index.html.tpl.orig"
-            # Insert before closing </body> or </head>
             sed -i '/<\/head>/i \    <script type="text/javascript" src="/pve2/js/pve-microvm.js"><\/script>' "$INDEX_TPL"
             log "UI injection done — reload the PVE web UI to see changes"
         else
@@ -147,7 +183,6 @@ cmd_revert() {
 
     log "reverting patches"
 
-    # Restore originals
     if [ -f "$BACKUP_DIR/Machine.pm.orig" ]; then
         cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM"
         log "restored Machine.pm"
@@ -158,20 +193,16 @@ cmd_revert() {
         log "restored QemuServer.pm"
     fi
 
-    # Remove MicroVM.pm
     rm -f "$MICROVM_MODULE"
 
-    # Remove UI files
     rm -f "$PVE_CSS_DIR/pve-microvm.css" 2>/dev/null
     rm -f "$PVE_JS_DIR/pve-microvm.js" 2>/dev/null
 
-    # Restore index.html.tpl if we patched it
     if [ -f "$BACKUP_DIR/index.html.tpl.orig" ]; then
         cp -a "$BACKUP_DIR/index.html.tpl.orig" "$INDEX_TPL"
         log "restored index.html.tpl"
     fi
 
-    # Remove backup and stamp
     rm -rf "$BACKUP_DIR"
     rm -f "$STAMP"
 
