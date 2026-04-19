@@ -125,7 +125,7 @@ qm terminal 900
 
 | | Feature | Priority | Impact | Effort |
 |---|---|---|---|---|
-| [ ] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
+| [x] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
 | [ ] | **Linked clones** — verify LVM snapshot clones work for instant VM creation | Critical | High | Low |
 | [ ] | **dpkg trigger** — auto-reapply patches after `qemu-server` upgrades | Critical | High | Low |
 | [ ] | **vsock (host↔guest sockets)** — fast communication without networking | High | High | Medium |
