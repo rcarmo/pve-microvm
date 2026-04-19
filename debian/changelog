@@ -1,3 +1,13 @@
+pve-microvm (0.1.19-1) trixie; urgency=medium
+
+  * CONFIRMED: all virtio devices probe (net, block, console, balloon).
+  * Linked clones: instant LVM snapshots work.
+  * dpkg trigger: auto-reapply patches on qemu-server upgrades.
+  * Disk resize, snapshots, vzdump backup all tested.
+  * Defconfig-based kernel with PCIe + initrd.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 21:00:00 +0000
+
 pve-microvm (0.1.18-1) trixie; urgency=medium
 
   * NEW KERNEL: built from 6.12 defconfig instead of Firecracker 6.1 config.
