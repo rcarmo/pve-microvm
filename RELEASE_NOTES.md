@@ -1,29 +1,26 @@
-# pve-microvm v0.1.5
+# pve-microvm v0.1.6
 
-Docs restructure, GUI extension, proper init, balloon device.
+Cloud-init, qemu-guest-agent, and Docker support.
 
-## Highlights
+## What's new
 
-- **Demo GIF in README** — concise README with all detail moved to `docs/`
-- **GUI extension** — `microvm` in machine type dropdown, auto-sets serial/vga
-- **`microvm-init`** — shipped init for minimal OCI images (debian:trixie-slim)
-  with `agetty --autologin root` on ttyS0
-- **Balloon device** — `virtio-balloon-device` on mmio suppresses PVE warning
-- **Default: `debian:trixie-slim`** (28 MB) — same Debian as PVE 9 host
+- **Cloud-init** — config drive on scsi1, SSH key injection, hostname, DHCP
+- **First-boot setup** — `microvm-setup` systemd oneshot installs:
+  - cloud-init (nocloud datasource for PVE)
+  - qemu-guest-agent (graceful shutdown, IP reporting)
+  - Docker CE (Engine + Compose + Buildx)
+- **Template with cloud-init drive** — `pve-microvm-template` now adds scsi1 cloudinit
+- **Roadmap additions** — SSH agent forwarding, network isolation, egress allow-list
 
-## End-to-end tested
+## Usage
 
+```bash
+pve-microvm-template
+qm clone 9000 901 --name sandbox --full
+qm set 901 --sshkeys ~/.ssh/authorized_keys
+qm start 901
+# First boot: ~60s (package install), then:
+ssh root@<vm-ip>
+docker run hello-world
+qm shutdown 901
 ```
-pve-microvm-template → qm clone → qm start → qm terminal → root@microvm:~#
-```
-
-On z83ii: PVE 9.1.7, QEMU 10.1.2, LVM-thin.
-
-## All changes since v0.1.4
-
-- Restructured docs into `docs/` (installation, usage, config, architecture,
-  limitations, troubleshooting, development)
-- Ship `microvm-init` for images without `/sbin/init`
-- Add `virtio-balloon-device` to QEMU command
-- Fix OCI import init detection (systemd vs busybox vs minimal)
-- GUI: machine dropdown, auto-set serial0/vga, hide unsupported fields

@@ -1,27 +1,27 @@
+pve-microvm (0.1.6-1) trixie; urgency=medium
+
+  * Cloud-init support: config drive on scsi1, SSH key injection, DHCP.
+  * First-boot setup: installs cloud-init, qemu-guest-agent, Docker CE.
+  * microvm-setup systemd oneshot service for first-boot provisioning.
+  * Template tool adds cloud-init drive and default ciuser/ipconfig.
+  * Roadmap: SSH agent forwarding, network isolation, egress allow-list.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 10:45:00 +0000
+
 pve-microvm (0.1.5-1) trixie; urgency=medium
 
   * Restructure docs: concise README with demo GIF, detailed docs in docs/.
   * GUI: add 'microvm' to machine type dropdown, auto-set serial/vga.
   * Ship microvm-init for images without init (e.g., debian:trixie-slim).
   * Add virtio-balloon-device (mmio) — suppresses PVE balloon warning.
-  * Fix OCI import init detection (systemd vs busybox vs minimal).
   * Default OCI image: debian:trixie-slim (28 MB).
-  * Allow vga=serial0 for PVE web UI xterm.js console.
-  * End-to-end tested: template → clone → boot → serial console.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 19:00:00 +0000
 
 pve-microvm (0.1.4-1) trixie; urgency=medium
 
-  * Set vga=serial0 so PVE web UI opens xterm.js serial console by default.
-  * Tools auto-set --serial0 socket --vga serial0 and delete vmgenid/smbios1.
-  * Default image changed to debian:trixie-slim (28 MB, same as PVE 9 host).
-  * Support systemd images: enable serial-getty@ttyS0, set empty root password.
-  * Fix bridge script path (/usr/libexec/qemu-server/).
-  * Fix args quoting for -append with spaces.
-  * Fix Perl module imports (Network.pm, Agent.pm).
-  * Fix get_vm_machine +pve0 append for microvm.
-  * Tested end-to-end on PVE 9.1.7 (z83ii).
+  * Serial console in PVE web UI (vga=serial0).
+  * All runtime fixes from live testing on PVE 9.1.7.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 17:30:00 +0000
 
@@ -33,13 +33,13 @@ pve-microvm (0.1.3-1) trixie; urgency=medium
 
 pve-microvm (0.1.2-1) trixie; urgency=medium
 
-  * Fix: override dh_auto_clean to preserve kernel artifact during build.
+  * Fix kernel inclusion in .deb.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 16:30:00 +0000
 
 pve-microvm (0.1.1-1) trixie; urgency=medium
 
-  * Fix: regex patch rewritten in Python, tested on live PVE 9 node.
+  * Fix regex patcher. Tested on live PVE 9 node.
 
  -- Rui Carmo <rui.carmo@gmail.com>  Fri, 18 Apr 2026 15:30:00 +0000
 
