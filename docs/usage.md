@@ -11,28 +11,30 @@ qm create <vmid> \
   --net0 virtio,bridge=vmbr0 \
   --serial0 socket \
   --vga serial0 \
-  --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=/dev/vda rw"'
+  --agent 1 \
+  --args '-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=/dev/vda rw quiet"'
 ```
 
 **Key points:**
-- `--args` with `-kernel` is **required** (no BIOS/UEFI boot)
+- `-kernel` + `-initrd` are **required** — the initrd loads virtio modules
 - `--serial0 socket` enables `qm terminal`
 - `--vga serial0` makes PVE web UI open xterm.js serial console
+- `--agent 1` enables the guest agent channel
 
 ## Using templates (recommended)
 
-The fastest way to get started — create a template once, clone instantly:
+Create a template once, clone instantly:
 
 ```bash
 # Create template from debian:trixie-slim (28 MB, same Debian as PVE 9)
-# Includes cloud-init drive for SSH key injection
+# Includes cloud-init drive, systemd, networkd, SSH, qemu-guest-agent
 pve-microvm-template
 
-# Clone new VMs in seconds
+# Clone new VMs
 qm clone 9000 901 --name agent-sandbox-1 --full
 qm clone 9000 902 --name agent-sandbox-2 --full
 
-# Set SSH key and other cloud-init options per clone
+# Set SSH key and cloud-init options per clone
 qm set 901 --sshkeys ~/.ssh/authorized_keys
 qm set 901 --ciuser root --ipconfig0 ip=dhcp
 
@@ -42,12 +44,7 @@ qm terminal 901
 ```
 
 The template includes a first-boot setup script (`microvm-setup`) that
-automatically installs:
-- **cloud-init** — reads PVE cloud-init config drive for SSH keys, hostname, networking
-- **qemu-guest-agent** — enables `qm shutdown`, IP reporting, filesystem freeze
-- **Docker CE** — full container runtime inside the microvm
-
-First boot takes ~60s for package installation. Subsequent boots are instant.
+installs cloud-init, qemu-guest-agent, Docker CE, and SSH.
 
 ### Template options
 
@@ -57,25 +54,17 @@ First boot takes ~60s for package installation. Subsequent boots are instant.
 | `--vmid` | `9000` | Template VM ID |
 | `--name` | `microvm-trixie` | Template name |
 | `--storage` | `local-lvm` | PVE storage backend |
-| `--disk-size` | `1G` | Root disk size |
+| `--disk-size` | `2G` | Root disk size |
 | `--list` | — | List existing microvm templates |
 | `--refresh` | — | Re-fetch even if template exists |
 
 ## Importing OCI images directly
 
-For one-off VMs without templates:
-
 ```bash
 pve-oci-import --image <image> --vmid <vmid> --configure
 ```
 
-Works with Docker Hub, ghcr.io, quay.io, or any OCI registry:
-
-```bash
-pve-oci-import --image alpine:latest --vmid 900 --configure
-pve-oci-import --image python:3.12-alpine --vmid 901 --configure
-pve-oci-import --image ghcr.io/myorg/myapp:v1.2 --vmid 902 --size 4G --configure
-```
+Works with Docker Hub, ghcr.io, quay.io, or any OCI registry.
 
 ## Console access
 
@@ -86,50 +75,53 @@ microvm has **no VGA display**. Use the serial console:
 qm terminal <vmid>
 # Disconnect: Ctrl-O
 
-# Web UI
-# Click "Console" on the VM — opens xterm.js serial terminal
+# Web UI: click "Console" — opens xterm.js serial terminal
 # (requires vga: serial0 in config)
 ```
 
 ## Networking
 
-Uses `virtio-net-device` (virtio-mmio). Works identically to standard virtio NICs.
+Uses `virtio-net-pci-non-transitional` with PCIe on microvm.
+Works identically to standard virtio NICs.
 
 ```bash
-# Single NIC
-qm set 900 --net0 virtio,bridge=vmbr0
-
-# With VLAN tag
-qm set 900 --net0 virtio,bridge=vmbr0,tag=100
-
-# Inside the guest
-udhcpc -i eth0          # Alpine
-dhclient eth0           # Debian
-ip addr add 10.0.0.100/24 dev eth0  # Static
+qm set 900 --net0 virtio,bridge=vmbr0              # Single NIC
+qm set 900 --net0 virtio,bridge=vmbr0,tag=100       # VLAN
 ```
 
-Proxmox firewall rules on the bridge still apply.
+Inside the guest, configure via cloud-init or manually:
+```bash
+ip link set eth0 up
+dhclient eth0
+```
 
 ## Guest agent
 
+Enables graceful `qm shutdown`, IP reporting, and filesystem freeze:
+
 ```bash
 qm set 900 --agent 1
-
-# Inside guest (Alpine)
-apk add qemu-guest-agent
-
-# Inside guest (Debian)
-apt install qemu-guest-agent
+# Agent starts automatically if installed in the template
 ```
 
-Enables graceful shutdown, IP reporting, and filesystem freeze.
-
 ## Shutdown
-
-microvm has no ACPI, so `qm shutdown` needs the guest agent:
 
 ```bash
 qm shutdown 900    # Graceful (needs guest agent)
 qm stop 900        # Force stop
 qm destroy 900     # Remove VM and disks
 ```
+
+## Architecture
+
+microvm with PCIe uses `virtio-*-pci-non-transitional` devices:
+
+| Device | Type |
+|---|---|
+| Block | `virtio-blk-pci-non-transitional` |
+| Network | `virtio-net-pci-non-transitional` |
+| Serial/Agent | `virtio-serial-pci-non-transitional` |
+| Balloon | `virtio-balloon-pci-non-transitional` |
+| Console | ISA serial (`isa-serial=on`) |
+
+Boot flow: kernel → initrd (loads virtio modules) → switch_root → systemd
