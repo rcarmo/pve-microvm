@@ -136,7 +136,7 @@ sub microvm_config_to_command {
     # isa-serial=on  — needed for serial console
     # rtc=on         — needed for timekeeping
     # pit/pic=off    — not needed, reduces attack surface
-    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on';
+    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on,auto-kernel-cmdline=on';
 
     # Use qboot for instant kernel loading (no SeaBIOS banner)
     my $qboot = '/usr/share/kvm/qboot.rom';
