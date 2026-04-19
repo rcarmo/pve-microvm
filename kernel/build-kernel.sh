@@ -79,6 +79,8 @@ cd "$SRCDIR"
 
 # Apply config: start from defconfig then merge our microvm config
 echo "Applying config..."
+echo "Cleaning build tree..."
+make mrproper >/dev/null 2>&1
 make defconfig >/dev/null 2>&1
 
 # Merge our microvm-specific config on top of defconfig
