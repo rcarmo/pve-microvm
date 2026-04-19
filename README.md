@@ -107,17 +107,49 @@ qm terminal 900
 
 ## Roadmap
 
+### Shipped
+
 - [x] `qm create/start/stop/destroy` with microvm
 - [x] Serial console via `qm terminal` and PVE web UI
 - [x] OCI image import and template cloning
 - [x] All PVE storage backends (LVM, ZFS, Ceph, NFS)
-- [x] Pre-built microvm kernel
+- [x] Pre-built microvm kernel (6.12 LTS)
 - [x] Web UI machine type dropdown
 - [x] Balloon device for memory reporting
-- [ ] vzdump backup validation
-- [ ] dpkg trigger for auto-repatching after upgrades
-- [ ] Performance benchmarking
-- [ ] Upstream proposal to Proxmox
+- [x] Guest agent channel (virtio-serial-device)
+- [x] Networking (tap, bridge, VLAN)
+- [x] `microvm-init` for minimal OCI images
+- [x] GitHub Actions CI/CD with kernel build
+
+### Planned
+
+| | Feature | Priority | Impact | Effort |
+|---|---|---|---|---|
+| [ ] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
+| [ ] | **Linked clones** — verify LVM snapshot clones work for instant VM creation | Critical | High | Low |
+| [ ] | **dpkg trigger** — auto-reapply patches after `qemu-server` upgrades | Critical | High | Low |
+| [ ] | **vsock (host↔guest sockets)** — fast communication without networking | High | High | Medium |
+| [ ] | **virtiofs (shared folders)** — mount host workspace into guest without network | High | High | High |
+| [ ] | **`qm shutdown` without agent** — lightweight shutdown via QMP or serial | High | Medium | Low |
+| [ ] | **Disk resize** — verify `qm disk resize` + guest `resize2fs` | High | Medium | Low |
+| [ ] | **vzdump backup** — validate snapshot and agent-based backup | High | Medium | Medium |
+| [ ] | **Firewall integration** — verify PVE firewall rules on microvm tap devices | High | Medium | Low |
+| [ ] | **Suppress SeaBIOS banner** — use `bios-microvm.bin` or qboot for cleaner boot | Medium | Low | Low |
+| [ ] | **GUI: conditional panel hiding** — hide BIOS/EFI/USB/PCI tabs for microvm | Medium | Medium | Medium |
+| [ ] | **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
+| [ ] | **GUI: one-click clone** — "Create microvm" button that clones from template | Medium | Medium | Medium |
+| [ ] | **Snapshots** — verify `qm snapshot` with microvm guests | Medium | Medium | Medium |
+| [ ] | **Migration** — test live migration with reduced device model | Medium | Medium | Medium |
+| [ ] | **HA (High Availability)** — test with PVE HA manager | Medium | Medium | Medium |
+| [ ] | **Resource accounting** — verify I/O metrics report correctly | Medium | Low | Low |
+| [ ] | **`onboot` / startup order** — verify PVE boot ordering works | Medium | Low | Low |
+| [ ] | **Nested virtualization** — run Docker/containers inside microvm | Medium | Medium | Low |
+| [ ] | **9p filesystem sharing** — alternative to virtiofs for host↔guest files | Low | Medium | Medium |
+| [ ] | **CPU/memory hotplug** — dynamic scaling for agent workloads | Low | Medium | Medium |
+| [ ] | **Multiple kernel management** — ship/manage multiple kernel versions | Low | Low | Low |
+| [ ] | **Custom icon persistence** — ensure ⚡ icon works across all browsers/reloads | Low | Low | Low |
+| [ ] | **Performance benchmarking** — document boot time, memory overhead, I/O throughput | Low | Medium | Medium |
+| [ ] | **Upstream proposal** — RFC patch series for Proxmox pve-devel mailing list | Low | High | High |
 
 ---
 
