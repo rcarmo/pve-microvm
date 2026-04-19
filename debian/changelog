@@ -1,3 +1,11 @@
+pve-microvm (0.1.20-1) trixie; urgency=medium
+
+  * Fix initrd: mount devtmpfs in new root before switch_root.
+  * Fixes /dev/ttyS0 and /dev/vport* not appearing after boot.
+  * Fixes serial-getty timeout and guest agent startup.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 21:30:00 +0000
+
 pve-microvm (0.1.19-1) trixie; urgency=medium
 
   * CONFIRMED: all virtio devices probe (net, block, console, balloon).
