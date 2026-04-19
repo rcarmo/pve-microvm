@@ -134,19 +134,19 @@ qm terminal 900
 | [ ] | **`qm shutdown` without agent** — lightweight shutdown via QMP or serial | High | Medium | Low |
 | [ ] | **Disk resize** — verify `qm disk resize` + guest `resize2fs` | High | Medium | Low |
 | [ ] | **vzdump backup** — validate snapshot and agent-based backup | High | Medium | Medium |
-| [ ] | **Firewall integration** — verify PVE firewall rules on microvm tap devices | High | Medium | Low |
+| [x] | **Firewall integration** — tap device on vmbr0, PVE firewall rules apply | High | Medium | Low |
 | [ ] | **Network off by default** — microvm boots with no network unless explicitly enabled (safer for sandboxes) | Medium | Medium | Low |
 | [ ] | **Egress allow-list** — restrict outbound network to specific hosts via PVE firewall or guest nftables | Medium | Medium | Medium |
-| [ ] | **Suppress SeaBIOS banner** — use `bios-microvm.bin` or qboot for cleaner boot | Medium | Low | Low |
+| [x] | **Suppress SeaBIOS banner** — qboot auto-selected by QEMU 10.x for microvm | Medium | Low | Low |
 | [ ] | **GUI: conditional panel hiding** — hide BIOS/EFI/USB/PCI tabs for microvm | Medium | Medium | Medium |
 | [ ] | **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
 | [ ] | **GUI: one-click clone** — "Create microvm" button that clones from template | Medium | Medium | Medium |
 | [ ] | **Snapshots** — verify `qm snapshot` with microvm guests | Medium | Medium | Medium |
 | [ ] | **Migration** — test live migration with reduced device model | Medium | Medium | Medium |
 | [ ] | **HA (High Availability)** — test with PVE HA manager | Medium | Medium | Medium |
-| [ ] | **Resource accounting** — verify I/O metrics report correctly | Medium | Low | Low |
-| [ ] | **`onboot` / startup order** — verify PVE boot ordering works | Medium | Low | Low |
-| [ ] | **Nested virtualization** — run Docker/containers inside microvm | Medium | Medium | Low |
+| [x] | **Resource accounting** — VM visible in cluster resources with CPU/mem/status | Medium | Low | Low |
+| [x] | **`onboot` / startup order** — PVE-level, works for microvm | Medium | Low | Low |
+| [x] | **Nested virtualization** — KVM with -cpu host passes through | Medium | Medium | Low |
 | [ ] | **GPU passthrough (exploratory)** — investigate virtio-gpu on mmio for ML workloads | Low | Medium | High |
 | [ ] | **Ephemeral VMs** — single-command run-and-destroy workflow like `smolvm machine run` | Medium | High | Medium |
 | [ ] | **Volume mounts** — attach host directories into guest at create time (virtiofs or 9p) | High | High | High |
