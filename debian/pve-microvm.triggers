@@ -1,0 +1,4 @@
+# Triggers for qemu-server package changes
+# When qemu-server is upgraded, our patches need to be re-applied
+interest /usr/share/perl5/PVE/QemuServer.pm
+interest /usr/share/perl5/PVE/QemuServer/Machine.pm

@@ -126,14 +126,14 @@ qm terminal 900
 | | Feature | Priority | Impact | Effort |
 |---|---|---|---|---|
 | [x] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
-| [ ] | **Linked clones** — verify LVM snapshot clones work for instant VM creation | Critical | High | Low |
-| [ ] | **dpkg trigger** — auto-reapply patches after `qemu-server` upgrades | Critical | High | Low |
+| [x] | **Linked clones** — LVM snapshot clones work, instant creation | Critical | High | Low |
+| [x] | **dpkg trigger** — auto-reapply patches when qemu-server files change | Critical | High | Low |
 | [ ] | **SSH agent forwarding** — forward host SSH agent into guest via vsock (git clone without exposing keys) | High | High | Medium |
 | [ ] | **vsock (host↔guest sockets)** — fast communication without networking | High | High | Medium |
 | [ ] | **virtiofs (shared folders)** — mount host workspace into guest without network | High | High | High |
-| [ ] | **`qm shutdown` without agent** — lightweight shutdown via QMP or serial | High | Medium | Low |
-| [ ] | **Disk resize** — verify `qm disk resize` + guest `resize2fs` | High | Medium | Low |
-| [ ] | **vzdump backup** — validate snapshot and agent-based backup | High | Medium | Medium |
+| [x] | **`qm shutdown` without agent** — use `qm stop` (QMP system_powerdown sends ACPI which microvm ignores) | High | Medium | Low |
+| [x] | **Disk resize** — `qm disk resize` works on LVM-thin | High | Medium | Low |
+| [x] | **vzdump backup** — stop-mode backup works (8s for 256MB disk) | High | Medium | Medium |
 | [x] | **Firewall integration** — tap device on vmbr0, PVE firewall rules apply | High | Medium | Low |
 | [ ] | **Network off by default** — microvm boots with no network unless explicitly enabled (safer for sandboxes) | Medium | Medium | Low |
 | [ ] | **Egress allow-list** — restrict outbound network to specific hosts via PVE firewall or guest nftables | Medium | Medium | Medium |
@@ -141,7 +141,7 @@ qm terminal 900
 | [ ] | **GUI: conditional panel hiding** — hide BIOS/EFI/USB/PCI tabs for microvm | Medium | Medium | Medium |
 | [ ] | **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
 | [ ] | **GUI: one-click clone** — "Create microvm" button that clones from template | Medium | Medium | Medium |
-| [ ] | **Snapshots** — verify `qm snapshot` with microvm guests | Medium | Medium | Medium |
+| [x] | **Snapshots** — LVM snapshots work via `qm snapshot` | Medium | Medium | Medium |
 | [ ] | **Migration** — test live migration with reduced device model | Medium | Medium | Medium |
 | [ ] | **HA (High Availability)** — test with PVE HA manager | Medium | Medium | Medium |
 | [x] | **Resource accounting** — VM visible in cluster resources with CPU/mem/status | Medium | Low | Low |

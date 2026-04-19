@@ -1,9 +1,15 @@
 #!/bin/bash
-# pve-microvm postinst — apply patches to qemu-server on install
+# pve-microvm postinst — apply patches to qemu-server on install or trigger
 set -e
 
 case "$1" in
     configure)
+        /usr/share/pve-microvm/pve-microvm-patch apply
+        ;;
+    triggered)
+        # qemu-server was upgraded — revert stale patches and re-apply
+        echo "pve-microvm: qemu-server changed, re-applying patches..."
+        /usr/share/pve-microvm/pve-microvm-patch revert 2>/dev/null || true
         /usr/share/pve-microvm/pve-microvm-patch apply
         ;;
 esac
