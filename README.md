@@ -128,12 +128,15 @@ qm terminal 900
 | [x] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
 | [ ] | **Linked clones** — verify LVM snapshot clones work for instant VM creation | Critical | High | Low |
 | [ ] | **dpkg trigger** — auto-reapply patches after `qemu-server` upgrades | Critical | High | Low |
+| [ ] | **SSH agent forwarding** — forward host SSH agent into guest via vsock (git clone without exposing keys) | High | High | Medium |
 | [ ] | **vsock (host↔guest sockets)** — fast communication without networking | High | High | Medium |
 | [ ] | **virtiofs (shared folders)** — mount host workspace into guest without network | High | High | High |
 | [ ] | **`qm shutdown` without agent** — lightweight shutdown via QMP or serial | High | Medium | Low |
 | [ ] | **Disk resize** — verify `qm disk resize` + guest `resize2fs` | High | Medium | Low |
 | [ ] | **vzdump backup** — validate snapshot and agent-based backup | High | Medium | Medium |
 | [ ] | **Firewall integration** — verify PVE firewall rules on microvm tap devices | High | Medium | Low |
+| [ ] | **Network off by default** — microvm boots with no network unless explicitly enabled (safer for sandboxes) | Medium | Medium | Low |
+| [ ] | **Egress allow-list** — restrict outbound network to specific hosts via PVE firewall or guest nftables | Medium | Medium | Medium |
 | [ ] | **Suppress SeaBIOS banner** — use `bios-microvm.bin` or qboot for cleaner boot | Medium | Low | Low |
 | [ ] | **GUI: conditional panel hiding** — hide BIOS/EFI/USB/PCI tabs for microvm | Medium | Medium | Medium |
 | [ ] | **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
@@ -150,6 +153,7 @@ qm terminal 900
 | [ ] | **Custom icon persistence** — ensure ⚡ icon works across all browsers/reloads | Low | Low | Low |
 | [ ] | **Performance benchmarking** — document boot time, memory overhead, I/O throughput | Low | Medium | Medium |
 | [ ] | **Upstream proposal** — RFC patch series for Proxmox pve-devel mailing list | Low | High | High |
+| [ ] | **Declarative VM config (Smolfile-style)** — TOML file describing image, resources, mounts, network for reproducible VMs | Low | Medium | Medium |
 | [ ] | **Plan 9 / 9Front microVM** — boot Plan 9 or 9Front as a microvm guest (different kernel, virtio drivers, console) | Low | Low | High |
 | [ ] | **AArch64 guest support** — microvm on ARM64 PVE hosts (different machine type, kernel config, virtio transport) | Low | Medium | High |
 
