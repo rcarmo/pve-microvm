@@ -207,6 +207,40 @@ if [ -f "$ROOTFS_DIR/etc/shadow" ]; then
     sed -i 's|^root:[^:]*:|root::|' "$ROOTFS_DIR/etc/shadow" 2>/dev/null || true
 fi
 
+# Install the setup script for first-boot package installation
+MICROVM_SETUP="/usr/share/pve-microvm/microvm-setup"
+if [ -f "$MICROVM_SETUP" ]; then
+    log "Installing first-boot setup script..."
+    install -m 755 "$MICROVM_SETUP" "$ROOTFS_DIR/usr/local/bin/microvm-setup"
+
+    # Create a systemd service to run it on first boot (if systemd will be used)
+    if [ -d "$ROOTFS_DIR/etc/systemd/system" ] || [ -d "$ROOTFS_DIR/lib/systemd" ]; then
+        mkdir -p "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants"
+        cat > "$ROOTFS_DIR/etc/systemd/system/microvm-setup.service" <<'SVCUNIT'
+[Unit]
+Description=microvm first-boot setup
+ConditionPathExists=!/etc/microvm-setup-done
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/microvm-setup
+RemainAfterExit=yes
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+SVCUNIT
+        ln -sf ../microvm-setup.service \
+            "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/microvm-setup.service"
+    else
+        # For non-systemd: add to microvm-init's boot sequence
+        # The setup will run when the user manually calls it
+        log "No systemd — run 'microvm-setup' manually after first boot"
+    fi
+fi
+
 # DNS defaults
 [ -f "$ROOTFS_DIR/etc/resolv.conf" ] || echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/etc/resolv.conf"
 
@@ -240,7 +274,15 @@ log "Importing disk to $STORAGE..."
 qm importdisk "$TEMPLATE_VMID" "$QCOW2" "$STORAGE" --format qcow2 >/dev/null 2>&1
 qm set "$TEMPLATE_VMID" --scsi0 "$STORAGE:vm-${TEMPLATE_VMID}-disk-0"
 
-# Step 7: Convert to template
+# Step 7: Add cloud-init drive
+log "Adding cloud-init drive..."
+qm set "$TEMPLATE_VMID" --scsi1 "$STORAGE:cloudinit" 2>/dev/null || \
+    log "warning: could not add cloud-init drive"
+
+# Set cloud-init defaults
+qm set "$TEMPLATE_VMID" --ciuser root --ipconfig0 ip=dhcp 2>/dev/null || true
+
+# Step 8: Convert to template
 log "Converting to template..."
 qm template "$TEMPLATE_VMID"
 
@@ -249,5 +291,10 @@ log "=== Template ready ==="
 log ""
 log "Clone a new microvm:"
 log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-sandbox --full"
+log ""
+log "Set SSH key (optional):"
+log "  qm set <new-vmid> --sshkeys ~/.ssh/authorized_keys"
+log ""
+log "Start and connect:"
 log "  qm start <new-vmid>"
 log "  qm terminal <new-vmid>"

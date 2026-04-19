@@ -25,16 +25,29 @@ The fastest way to get started — create a template once, clone instantly:
 
 ```bash
 # Create template from debian:trixie-slim (28 MB, same Debian as PVE 9)
+# Includes cloud-init drive for SSH key injection
 pve-microvm-template
 
 # Clone new VMs in seconds
 qm clone 9000 901 --name agent-sandbox-1 --full
 qm clone 9000 902 --name agent-sandbox-2 --full
 
+# Set SSH key and other cloud-init options per clone
+qm set 901 --sshkeys ~/.ssh/authorized_keys
+qm set 901 --ciuser root --ipconfig0 ip=dhcp
+
 # Boot and connect
 qm start 901
 qm terminal 901
 ```
+
+The template includes a first-boot setup script (`microvm-setup`) that
+automatically installs:
+- **cloud-init** — reads PVE cloud-init config drive for SSH keys, hostname, networking
+- **qemu-guest-agent** — enables `qm shutdown`, IP reporting, filesystem freeze
+- **Docker CE** — full container runtime inside the microvm
+
+First boot takes ~60s for package installation. Subsequent boots are instant.
 
 ### Template options
 

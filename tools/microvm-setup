@@ -1,0 +1,142 @@
+#!/bin/bash
+# microvm-setup — first-boot setup script injected into OCI rootfs
+#
+# Runs inside the microvm guest on first boot to install:
+# - cloud-init (reads PVE cloud-init config drive)
+# - qemu-guest-agent (enables graceful shutdown, IP reporting)
+# - Docker CE (container runtime)
+# - Basic system config for serial console
+#
+# This script is run by microvm-init or as part of the rootfs build.
+
+set -eu
+
+export DEBIAN_FRONTEND=noninteractive
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+log() { echo "[microvm-setup] $*"; }
+
+log "Starting microvm first-boot setup..."
+
+# Mount essential filesystems if not already mounted
+mountpoint -q /proc || mount -t proc proc /proc 2>/dev/null || true
+mountpoint -q /sys || mount -t sysfs sys /sys 2>/dev/null || true
+mountpoint -q /dev || mount -t devtmpfs dev /dev 2>/dev/null || true
+
+# Wait for network (cloud-init may configure it, or DHCP)
+log "Waiting for network..."
+for i in $(seq 1 30); do
+    if ip route show default 2>/dev/null | grep -q default; then
+        break
+    fi
+    # Try DHCP on any available interface
+    for iface in eth0 enp0s1 ens3; do
+        if ip link show "$iface" >/dev/null 2>&1; then
+            dhclient "$iface" 2>/dev/null || true
+        fi
+    done
+    sleep 1
+done
+
+# Configure apt
+log "Configuring apt sources..."
+if [ ! -f /etc/apt/sources.list ] && [ ! -d /etc/apt/sources.list.d ] || \
+   [ -z "$(find /etc/apt/sources.list.d -name '*.sources' -o -name '*.list' 2>/dev/null)" ]; then
+    mkdir -p /etc/apt/sources.list.d
+    cat > /etc/apt/sources.list.d/debian.sources << 'SOURCES'
+Types: deb
+URIs: http://deb.debian.org/debian
+Suites: trixie trixie-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+SOURCES
+fi
+
+log "Updating package lists..."
+apt-get update -qq 2>/dev/null || true
+
+# Install cloud-init
+log "Installing cloud-init..."
+apt-get install -y -qq cloud-init 2>/dev/null || log "warning: cloud-init install failed"
+
+# Configure cloud-init for nocloud (PVE config drive)
+if [ -d /etc/cloud/cloud.cfg.d ]; then
+    cat > /etc/cloud/cloud.cfg.d/99-pve-microvm.cfg << 'CLOUDCFG'
+# PVE microvm cloud-init config
+datasource_list: [NoCloud, ConfigDrive, None]
+# The PVE cloud-init drive appears as /dev/vdb in microvm
+datasource:
+  NoCloud:
+    fs_label: cidata
+  ConfigDrive:
+    dsmode: local
+# Don't wait for metadata service
+cloud_init_modules:
+  - seed_random
+  - set_hostname
+  - update_hostname
+  - update_etc_hosts
+  - users-groups
+  - ssh
+  - runcmd
+cloud_config_modules:
+  - ssh-import-id
+  - set-passwords
+  - ntp
+  - timezone
+  - package-update-upgrade-install
+cloud_final_modules:
+  - scripts-per-once
+  - scripts-per-boot
+  - scripts-user
+  - phone-home
+  - final-message
+CLOUDCFG
+fi
+
+# Install QEMU guest agent
+log "Installing qemu-guest-agent..."
+apt-get install -y -qq qemu-guest-agent 2>/dev/null || log "warning: qemu-guest-agent install failed"
+
+# Enable guest agent to start on boot
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable qemu-guest-agent 2>/dev/null || true
+fi
+
+# Install Docker CE
+log "Installing Docker..."
+apt-get install -y -qq ca-certificates curl 2>/dev/null || true
+
+# Add Docker's GPG key and repo
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc 2>/dev/null || true
+chmod a+r /etc/apt/keyrings/docker.asc 2>/dev/null || true
+
+if [ -f /etc/apt/keyrings/docker.asc ]; then
+    ARCH=$(dpkg --print-architecture)
+    CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $CODENAME stable" > \
+        /etc/apt/sources.list.d/docker.list
+
+    apt-get update -qq 2>/dev/null || true
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || \
+        log "warning: Docker install failed"
+fi
+
+# Configure serial console getty
+log "Configuring serial console..."
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
+fi
+
+# Set empty root password for serial login
+sed -i 's|^root:[^:]*:|root::|' /etc/shadow 2>/dev/null || true
+
+# Clean up apt cache
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Mark setup as done
+touch /etc/microvm-setup-done
+
+log "Setup complete."
