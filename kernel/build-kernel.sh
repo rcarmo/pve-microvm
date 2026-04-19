@@ -118,6 +118,7 @@ mkdir -p "$INITRD_DIR"/{bin,lib/modules,proc,sys,dev,mnt,tmp}
 # Copy virtio modules
 find "$MOD_DIR" -name 'virtio_net.ko*' -o -name 'virtio_balloon.ko*' -o -name 'virtio_console.ko*' \
   -o -name 'virtio_mmio.ko*' -o -name 'virtio_ring.ko*' -o -name 'virtio.ko*' \
+  -o -name 'virtio_blk.ko*' \
   -o -name 'net_failover.ko*' -o -name 'failover.ko*' -o -name 'hw_random.ko*' \
   -o -name 'virtio_rng.ko*' | while read -r mod; do
     cp "$mod" "$INITRD_DIR/lib/modules/" 2>/dev/null
@@ -135,6 +136,7 @@ mount -t devtmpfs dev /dev
 # Load virtio modules in dependency order
 for mod in /lib/modules/virtio.ko* /lib/modules/virtio_ring.ko* \
            /lib/modules/virtio_mmio.ko* \
+           /lib/modules/virtio_blk.ko* \
            /lib/modules/failover.ko* /lib/modules/net_failover.ko* \
            /lib/modules/virtio_net.ko* \
            /lib/modules/virtio_console.ko* \

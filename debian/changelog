@@ -1,3 +1,11 @@
+pve-microvm (0.1.16-1) trixie; urgency=medium
+
+  * Fix: make virtio_blk a module too so initrd handles ALL device setup.
+  * Remove root= from kernel cmdline — initrd mounts root after loading modules.
+  * This forces the kernel to use the initrd, loading all virtio modules.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 17:30:00 +0000
+
 pve-microvm (0.1.15-1) trixie; urgency=medium
 
   * Fix: add rdinit=/init to kernel cmdline when using initrd.

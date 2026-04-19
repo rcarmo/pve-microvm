@@ -340,12 +340,11 @@ sub microvm_config_to_command {
         if ($args_str =~ m|-kernel /usr/share/pve-microvm/vmlinuz| && $args_str !~ m|-initrd|) {
             if (-f '/usr/share/pve-microvm/initrd') {
                 $args_str =~ s|(-kernel /usr/share/pve-microvm/vmlinuz)|$1 -initrd /usr/share/pve-microvm/initrd|;
+                # Also inject rdinit=/init if not present
+                if ($args_str !~ m|rdinit=|) {
+                    $args_str =~ s|console=ttyS0|rdinit=/init console=ttyS0|;
+                }
             }
-        }
-
-        # Auto-inject rdinit=/init if using initrd and not already specified
-        if ($args_str =~ m|-initrd| && $args_str !~ m|rdinit=|) {
-            $args_str =~ s|(-append ")|$1rdinit=/init |;
         }
 
         # Parse respecting double-quoted strings
