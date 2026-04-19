@@ -212,6 +212,27 @@ rm -rf "$MOD_DIR" "$INITRD_DIR"
 # Copy kernel output
 BZIMAGE="arch/x86/boot/bzImage"
 if [ -f "$BZIMAGE" ]; then
+    # Verify critical drivers are actually linked
+    echo "Verifying built kernel symbols..."
+    if [ -f vmlinux ]; then
+        for sym in virtnet_probe virtblk_probe balloon_probe; do
+            if nm vmlinux 2>/dev/null | grep -q "$sym"; then
+                echo "  $sym: FOUND"
+            else
+                echo "  $sym: MISSING!"
+            fi
+        done
+    fi
+    # Also check object files
+    echo "Driver objects:"
+    for obj in drivers/net/virtio_net.o drivers/block/virtio_blk.o drivers/virtio/virtio_balloon.o; do
+        if [ -f "$obj" ]; then
+            echo "  $obj: $(stat -c%s "$obj") bytes"
+        else
+            echo "  $obj: NOT BUILT!"
+        fi
+    done
+
     cp "$BZIMAGE" "$OUTPUT"
     SIZE=$(du -sh "$OUTPUT" | cut -f1)
     echo ""
