@@ -30,7 +30,14 @@ MEMORY="256"
 CORES="1"
 BRIDGE="vmbr0"
 TAGS="microvm,template"
-KERNEL="/usr/share/pve-microvm/vmlinuz"
+# Auto-detect kernel: prefer shipped microvm kernel, fallback to host kernel
+if [ -f "/usr/share/pve-microvm/vmlinuz" ]; then
+    KERNEL="/usr/share/pve-microvm/vmlinuz"
+    INITRD=""
+else
+    KERNEL="/boot/vmlinuz-$(uname -r)"
+    INITRD="/boot/initrd.img-$(uname -r)"
+fi
 APPEND="console=ttyS0 root=/dev/vda rw quiet"
 
 log() { echo "[$PROG] $*"; }
@@ -339,6 +346,11 @@ qemu-img convert -f raw -O qcow2 "$RAW" "$QCOW2"
 
 # Step 5: Create template VM
 log "Creating template VM $TEMPLATE_VMID..."
+KERNEL_ARGS="-kernel $KERNEL -append \"$APPEND\""
+if [ -n "$INITRD" ] && [ -f "$INITRD" ]; then
+    KERNEL_ARGS="-kernel $KERNEL -initrd $INITRD -append \"$APPEND\""
+fi
+
 qm create "$TEMPLATE_VMID" \
     --machine microvm \
     --name "$TEMPLATE_NAME" \
@@ -349,7 +361,7 @@ qm create "$TEMPLATE_VMID" \
     --vga serial0 \
     --agent 1 \
     --tags "$TAGS" \
-    --args "-kernel $KERNEL -append \"$APPEND\""
+    --args "$KERNEL_ARGS"
 
 # Remove options that microvm doesn't support (auto-set by qm create)
 qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true

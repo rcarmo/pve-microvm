@@ -1,3 +1,11 @@
+pve-microvm (0.1.11-1) trixie; urgency=medium
+
+  * Template: auto-detect kernel, use host kernel+initrd as fallback.
+  * Revert to virtio-mmio devices (host kernel modules handle discovery).
+  * Document known issues: mmio discovery, serial buffering.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 15:00:00 +0000
+
 pve-microvm (0.1.10-1) trixie; urgency=medium
 
   * Fix kernel build: verify and force critical virtio configs after olddefconfig.
