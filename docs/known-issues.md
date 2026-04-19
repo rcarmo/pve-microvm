@@ -1,26 +1,45 @@
 # Known Issues
 
-## virtio-mmio device discovery (v0.1.x)
+## Virtio driver binding on QEMU 10.x microvm (v0.1.x)
 
-The pre-built kernel (6.12.22 from Firecracker 6.1 config) has all virtio
-drivers compiled in, but **only `virtio_blk` probes** on the microvm mmio bus.
-`virtio_net`, `virtio_console`, and `virtio_balloon` are linked into the
-kernel but don't bind to their devices.
+**Status**: Under investigation. Affects the shipped 6.12.22 custom kernel.
 
-**Root cause**: Under investigation. The QEMU 10.x microvm mmio device
-registration path differs from Firecracker's libkrun, and the kernel's
-`virtio_mmio` driver doesn't discover all devices.
+The pre-built kernel has all virtio drivers compiled in (`=y`), but only
+`virtio_blk` binds to devices — both on mmio and PCIe transport. The
+`virtio_net`, `virtio_console`, and `virtio_balloon` drivers are present in
+the kernel binary but their probe functions never fire.
 
-### Workarounds
+This affects:
+- **Networking**: no eth0 interface
+- **Guest agent**: no virtio-serial port, qemu-ga can't start
+- **Memory ballooning**: no balloon device
 
-1. **Use the PVE host kernel + initrd** (recommended until fixed):
-   ```
-   args: -kernel /boot/vmlinuz-$(uname -r) -initrd /boot/initrd.img-$(uname -r) -append "console=ttyS0 root=/dev/vda rw"
-   ```
-   This uses modules from the initramfs and all devices work.
+The same behavior occurs with:
+- virtio-mmio transport (no PCI)
+- PCIe with transitional devices
+- PCIe with non-transitional devices
+- Drivers built-in (`=y`) or as modules (`=m`)
 
-2. **Use `pcie=on`** in the machine flags (adds ~100ms boot time):
-   Requires fixing the I/O BAR assignment issue on microvm's minimal PCI bridge.
+### Root cause hypothesis
+
+The Firecracker 6.1 kernel config, when processed by `make olddefconfig` on
+kernel 6.12, silently changes a Kconfig dependency that prevents non-block
+virtio PCI device IDs from being registered. The `virtio_blk` driver works
+because its device ID table is populated differently.
+
+### Workaround: use PVE host kernel
+
+```
+args: -kernel /boot/vmlinuz-$(uname -r) -initrd /boot/initrd.img-$(uname -r) -append "console=ttyS0 root=/dev/vda rw"
+```
+
+Requires 1GB+ RAM due to the large PVE initrd (78 MB).
+
+### Future fix
+
+- Build a kernel config from scratch for 6.12 (not based on Firecracker 6.1)
+- Or debug the exact Kconfig dependency causing the driver ID table issue
+- Or use the PVE kernel with a minimal initrd containing only virtio modules
 
 ## Serial console buffering
 
