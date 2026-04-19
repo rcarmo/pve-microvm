@@ -158,10 +158,11 @@ done
 if [ -b /dev/vda ]; then
     mount -t ext4 /dev/vda /mnt 2>/dev/null || mount /dev/vda /mnt 2>/dev/null
     if [ -x /mnt/sbin/init ] || [ -L /mnt/sbin/init ]; then
-        # Move mounts into new root
-        mount --move /proc /mnt/proc 2>/dev/null || umount /proc
-        mount --move /sys /mnt/sys 2>/dev/null || umount /sys
-        mount --move /dev /mnt/dev 2>/dev/null || umount /dev
+        # Clean up and switch to real root
+        # switch_root will delete initrd contents and chroot into /mnt
+        umount /proc 2>/dev/null
+        umount /sys 2>/dev/null
+        # Keep /dev mounted — switch_root moves it automatically
         exec switch_root /mnt /sbin/init
     fi
 fi

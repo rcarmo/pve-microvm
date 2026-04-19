@@ -307,14 +307,12 @@ APTSRC
         mkdir -p /etc/systemd/system/qemu-guest-agent.service.d
         cat > /etc/systemd/system/qemu-guest-agent.service.d/microvm.conf <<QGAFIX
 [Unit]
-# Remove device binding — virtio-mmio ports may not get udev symlinks
 BindsTo=
 After=
 
 [Service]
-# Use the virtio port directly
 ExecStart=
-ExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport0p0
+ExecStart=-/usr/sbin/qemu-ga
 QGAFIX
 
         # Configure cloud-init for PVE nocloud
