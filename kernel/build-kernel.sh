@@ -77,19 +77,18 @@ fi
 
 cd "$SRCDIR"
 
-# Apply config: Firecracker base + PVE overlay
+# Apply config: start from defconfig then merge our microvm config
 echo "Applying config..."
-cp "${SCRIPT_DIR}/base-x86_64-6.1.config" .config
+make defconfig >/dev/null 2>&1
 
-# Merge overlay config
-if [ -f "${SCRIPT_DIR}/pve-microvm-overlay.config" ]; then
-    scripts/kconfig/merge_config.sh -m .config "${SCRIPT_DIR}/pve-microvm-overlay.config" >/dev/null 2>&1 || {
-        # Fallback: manual append + olddefconfig
-        cat "${SCRIPT_DIR}/pve-microvm-overlay.config" >> .config
+# Merge our microvm-specific config on top of defconfig
+if [ -f "${SCRIPT_DIR}/pve-microvm-6.12.config" ]; then
+    scripts/kconfig/merge_config.sh -m .config "${SCRIPT_DIR}/pve-microvm-6.12.config" >/dev/null 2>&1 || {
+        cat "${SCRIPT_DIR}/pve-microvm-6.12.config" >> .config
     }
 fi
 
-# Resolve dependencies and set defaults for new options
+# Resolve dependencies
 make olddefconfig >/dev/null 2>&1
 
 # Verify critical configs survived olddefconfig

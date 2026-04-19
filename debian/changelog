@@ -1,3 +1,13 @@
+pve-microvm (0.1.18-1) trixie; urgency=medium
+
+  * NEW KERNEL: built from 6.12 defconfig instead of Firecracker 6.1 config.
+  * defconfig has working virtio_net/console/balloon out of the box.
+  * pve-microvm-6.12.config: microvm-specific overlay on top of defconfig.
+  * No initrd needed — all drivers built-in from proper kernel config.
+  * PCIe + non-transitional virtio devices.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 19:00:00 +0000
+
 pve-microvm (0.1.17-1) trixie; urgency=medium
 
   * Switch to PCIe + non-transitional virtio devices.
