@@ -1,4 +1,13 @@
-pve-microvm (0.1.6-1) trixie; urgency=medium
+pve-microvm (0.1.7-1) trixie; urgency=medium
+pve-microvm (0.1.7-1) trixie; urgency=medium
+
+  * Fix: add ISO9660 + VFAT to kernel config (required for cloud-init drive).
+  * Fix: add --agent 1 to template VM config.
+  * Fix: increase default disk to 2G (room for packages).
+  * Kernel overlay now includes: iso9660, joliet, vfat, fat, NLS codepages.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 11:30:00 +0000
+
 
   * Cloud-init support: config drive on scsi1, SSH key injection, DHCP.
   * First-boot setup: installs cloud-init, qemu-guest-agent, Docker CE.

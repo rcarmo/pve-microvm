@@ -25,7 +25,7 @@ IMAGE="debian:trixie-slim"
 TEMPLATE_VMID="9000"
 TEMPLATE_NAME="microvm-trixie"
 STORAGE="local-lvm"
-DISK_SIZE="1G"
+DISK_SIZE="2G"
 MEMORY="256"
 CORES="1"
 BRIDGE="vmbr0"
@@ -241,8 +241,75 @@ SVCUNIT
     fi
 fi
 
-# DNS defaults
+# DNS defaults (needed for chroot package install)
 [ -f "$ROOTFS_DIR/etc/resolv.conf" ] || echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/etc/resolv.conf"
+
+# Step 4: Install essential packages via chroot
+# trixie-slim has no networking tools — install them at build time
+if [ -f "$ROOTFS_DIR/usr/bin/apt-get" ] || [ -f "$ROOTFS_DIR/usr/bin/dpkg" ]; then
+    log "Installing base packages via chroot..."
+
+    # Bind-mount host resources for chroot
+    mount --bind /proc "$ROOTFS_DIR/proc" 2>/dev/null || true
+    mount --bind /sys "$ROOTFS_DIR/sys" 2>/dev/null || true
+    mount --bind /dev "$ROOTFS_DIR/dev" 2>/dev/null || true
+    mount --bind /dev/pts "$ROOTFS_DIR/dev/pts" 2>/dev/null || true
+
+    # Ensure apt sources exist
+    if [ ! -f "$ROOTFS_DIR/etc/apt/sources.list" ] && \
+       [ -z "$(find "$ROOTFS_DIR/etc/apt/sources.list.d" -name '*.sources' -o -name '*.list' 2>/dev/null)" ]; then
+        mkdir -p "$ROOTFS_DIR/etc/apt/sources.list.d"
+        cat > "$ROOTFS_DIR/etc/apt/sources.list.d/debian.sources" <<'APTSRC'
+Types: deb
+URIs: http://deb.debian.org/debian
+Suites: trixie trixie-updates
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+APTSRC
+    fi
+
+    # Install packages
+    chroot "$ROOTFS_DIR" /bin/bash -c '
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -qq 2>/dev/null
+        apt-get install -y -qq --no-install-recommends \
+            iproute2 isc-dhcp-client systemd systemd-sysv \
+            openssh-server cloud-init qemu-guest-agent \
+            ca-certificates curl 2>/dev/null
+
+        # Enable serial console and essential services
+        systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
+        systemctl enable qemu-guest-agent 2>/dev/null || true
+        systemctl enable ssh 2>/dev/null || true
+        systemctl enable cloud-init 2>/dev/null || true
+
+        # Configure cloud-init for PVE nocloud
+        mkdir -p /etc/cloud/cloud.cfg.d
+        cat > /etc/cloud/cloud.cfg.d/99-pve.cfg <<CICFG
+datasource_list: [NoCloud, ConfigDrive, None]
+datasource:
+  NoCloud:
+    fs_label: cidata
+CICFG
+
+        # Set empty root password
+        sed -i "s|^root:[^:]*:|root::|" /etc/shadow 2>/dev/null || true
+
+        # Clean up
+        apt-get clean 2>/dev/null || true
+        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ' 2>&1 || log "warning: chroot package install had errors"
+
+    # Unmount
+    umount "$ROOTFS_DIR/dev/pts" 2>/dev/null || true
+    umount "$ROOTFS_DIR/dev" 2>/dev/null || true
+    umount "$ROOTFS_DIR/sys" 2>/dev/null || true
+    umount "$ROOTFS_DIR/proc" 2>/dev/null || true
+
+    log "Base packages installed."
+else
+    log "No apt-get found — skipping chroot package install"
+fi
 
 # Step 4: Create disk image
 log "Creating $DISK_SIZE disk..."
@@ -263,6 +330,7 @@ qm create "$TEMPLATE_VMID" \
     --net0 "virtio,bridge=$BRIDGE" \
     --serial0 socket \
     --vga serial0 \
+    --agent 1 \
     --tags "$TAGS" \
     --args "-kernel $KERNEL -append \"$APPEND\""
 
