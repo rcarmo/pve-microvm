@@ -156,15 +156,25 @@ INITSCRIPT
 chmod 755 "$INITRD_DIR/init"
 
 # We need busybox-static for the initrd (insmod, mount, switch_root)
-# Try to get it from the build system
-if command -v busybox >/dev/null 2>&1 && ldd $(which busybox) 2>&1 | grep -q 'not a dynamic'; then
-    cp $(which busybox) "$INITRD_DIR/bin/busybox"
-else
-    # Download static busybox
-    curl -sL "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox" -o "$INITRD_DIR/bin/busybox" || \
-    curl -sL "https://www.busybox.net/downloads/binaries/1.31.0-i686-uclibc/busybox" -o "$INITRD_DIR/bin/busybox" || true
+# Prefer busybox-static package, then system busybox, then download
+BUSYBOX=""
+if [ -f /usr/bin/busybox-static ]; then
+    BUSYBOX=/usr/bin/busybox-static
+elif command -v busybox >/dev/null 2>&1; then
+    # Check if it's statically linked
+    if file $(which busybox) | grep -q 'statically linked'; then
+        BUSYBOX=$(which busybox)
+    fi
 fi
-if [ -f "$INITRD_DIR/bin/busybox" ]; then
+if [ -z "$BUSYBOX" ]; then
+    # Download static busybox
+    echo "Downloading static busybox..."
+    curl -sL "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox" -o "$INITRD_DIR/bin/busybox" 2>/dev/null || \
+    curl -sL "https://www.busybox.net/downloads/binaries/1.31.0-x86_64-uclibc/busybox" -o "$INITRD_DIR/bin/busybox" 2>/dev/null || true
+    BUSYBOX="$INITRD_DIR/bin/busybox"
+fi
+if [ -n "$BUSYBOX" ] && [ -f "$BUSYBOX" ]; then
+    cp "$BUSYBOX" "$INITRD_DIR/bin/busybox" 2>/dev/null || true
     chmod 755 "$INITRD_DIR/bin/busybox"
     for cmd in sh mount umount insmod modprobe switch_root sleep; do
         ln -sf busybox "$INITRD_DIR/bin/$cmd"

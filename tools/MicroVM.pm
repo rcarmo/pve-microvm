@@ -335,6 +335,14 @@ sub microvm_config_to_command {
     # Must handle quoted strings properly (e.g. -append "..." is one argument).
     if ($conf->{args}) {
         my $args_str = $conf->{args};
+
+        # Auto-inject initrd if using shipped kernel and no -initrd specified
+        if ($args_str =~ m|-kernel /usr/share/pve-microvm/vmlinuz| && $args_str !~ m|-initrd|) {
+            if (-f '/usr/share/pve-microvm/initrd') {
+                $args_str =~ s|(-kernel /usr/share/pve-microvm/vmlinuz)|$1 -initrd /usr/share/pve-microvm/initrd|;
+            }
+        }
+
         # Parse respecting double-quoted strings
         my @args;
         while ($args_str =~ /\G\s*("[^"]*"|\S+)/g) {

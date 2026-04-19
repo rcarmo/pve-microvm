@@ -1,3 +1,11 @@
+pve-microvm (0.1.13-1) trixie; urgency=medium
+
+  * Fix initrd: install busybox-static in CI, fix static detection.
+  * MicroVM.pm: auto-inject -initrd when using shipped kernel.
+  * Guest agent: virtio_console.ko in initrd enables /dev/vport devices.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 16:00:00 +0000
+
 pve-microvm (0.1.12-1) trixie; urgency=medium
 
   * Ship minimal initrd with virtio modules (fixes net/serial/balloon).
