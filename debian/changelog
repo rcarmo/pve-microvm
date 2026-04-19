@@ -1,3 +1,13 @@
+pve-microvm (0.1.17-1) trixie; urgency=medium
+
+  * Switch to PCIe + non-transitional virtio devices.
+  * QEMU 10.x microvm mmio transport has a device probe bug — only virtio-blk
+    binds on the mmio bus. PCIe mode works reliably for all devices.
+  * Revert virtio drivers to built-in (=y) — no initrd needed with PCI.
+  * Template: no initrd, root=/dev/vda, direct kernel boot.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 18:30:00 +0000
+
 pve-microvm (0.1.16-1) trixie; urgency=medium
 
   * Fix: make virtio_blk a module too so initrd handles ALL device setup.
