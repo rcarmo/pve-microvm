@@ -139,7 +139,7 @@ sub microvm_config_to_command {
     # microvm with PCIe enabled — virtio-mmio device discovery is broken
     # on kernel 6.12 built from Firecracker 6.1 config (only virtio-blk probes).
     # PCIe mode adds ~50ms but ALL virtio devices work reliably via PCI transport.
-    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on';
+    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on,pcie=on';
 
     # Use qboot for instant kernel loading (no SeaBIOS banner)
     my $qboot = '/usr/share/kvm/qboot.rom';
@@ -189,9 +189,9 @@ sub microvm_config_to_command {
     push @$cmd, '-m', "${memory}M";
 
     # ── Balloon device ───────────────────────────────────────────
-    # virtio-balloon-device suppresses the PVE post-start
+    # virtio-balloon-pci suppresses the PVE post-start
     # balloon warning and enables memory reporting.
-    push @$cmd, '-device', 'virtio-balloon-device,id=balloon0';
+    push @$cmd, '-device', 'virtio-balloon-pci,id=balloon0';
 
     # ── Serial console ───────────────────────────────────────────
     # Primary console for microvm — accessible via `qm terminal $vmid`
@@ -206,12 +206,12 @@ sub microvm_config_to_command {
             { name => "VM $vmid", id => $vmid, type => 'qga' }
         );
         push @$cmd, '-chardev', "socket,path=$qgasocket,server=on,wait=off,id=qga0";
-        push @$cmd, '-device', 'virtio-serial-device';
+        push @$cmd, '-device', 'virtio-serial-pci';
         push @$cmd, '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0';
     }
 
     # ── Block devices ────────────────────────────────────────────
-    # Use virtio-blk-device (virtio-mmio.
+    # Use virtio-blk-pci (virtio-mmio.
     # Supports all PVE storage backends: local dir, LVM, LVM-thin, ZFS,
     # Ceph/RBD, NFS, CIFS, GlusterFS — anything PVE::Storage::path() resolves.
     #
@@ -305,11 +305,11 @@ sub microvm_config_to_command {
         }
 
         push @$cmd, '-drive', $drive_cmd;
-        push @$cmd, '-device', "virtio-blk-device,drive=drive-$ds";
+        push @$cmd, '-device', "virtio-blk-pci,drive=drive-$ds";
     }
 
     # ── Network ──────────────────────────────────────────────────
-    # Use virtio-net-device (virtio-mmio
+    # Use virtio-net-pci (virtio-mmio
     for (my $i = 0; $i < 6; $i++) {
         my $netkey = "net$i";
         next if !$conf->{$netkey};
@@ -323,7 +323,7 @@ sub microvm_config_to_command {
         $netdev_cmd .= ",downscript=/usr/libexec/qemu-server/pve-bridgedown";
         push @$cmd, '-netdev', $netdev_cmd;
 
-        my $device_cmd = "virtio-net-device,netdev=netdev$i";
+        my $device_cmd = "virtio-net-pci,netdev=netdev$i";
         $device_cmd .= ",mac=$net->{macaddr}" if $net->{macaddr};
         push @$cmd, '-device', $device_cmd;
     }
