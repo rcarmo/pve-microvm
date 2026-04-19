@@ -151,8 +151,8 @@ qm terminal 900
 | [ ] | **Ephemeral VMs** — single-command run-and-destroy workflow like `smolvm machine run` | Medium | High | Medium |
 | [ ] | **Volume mounts** — attach host directories into guest at create time (virtiofs or 9p) | High | High | High |
 | [ ] | **Pre-baked images** — ship ready-to-boot qcow2 templates (avoid chroot build at install) | Medium | Medium | Medium |
-| [ ] | **systemd-networkd auto-enable** — ensure DHCP works on first boot without manual config | High | High | Low |
-| [ ] | **Guest agent on virtio-mmio** — fix udev/device path for qemu-ga on mmio bus | High | High | Low |
+| [x] | **systemd-networkd auto-enable** — ensure DHCP works on first boot without manual config | High | High | Low |
+| [x] | **Guest agent on virtio-mmio** — fix udev/device path for qemu-ga on mmio bus | High | High | Low |
 | [ ] | **9p filesystem sharing** — alternative to virtiofs for host↔guest files | Low | Medium | Medium |
 | [ ] | **CPU/memory hotplug** — dynamic scaling for agent workloads | Low | Medium | Medium |
 | [ ] | **Multiple kernel management** — ship/manage multiple kernel versions | Low | Low | Low |
