@@ -30,10 +30,14 @@ MEMORY="256"
 CORES="1"
 BRIDGE="vmbr0"
 TAGS="microvm,template"
-# Auto-detect kernel: prefer shipped microvm kernel, fallback to host kernel
+# Auto-detect kernel + initrd
 if [ -f "/usr/share/pve-microvm/vmlinuz" ]; then
     KERNEL="/usr/share/pve-microvm/vmlinuz"
-    INITRD=""
+    if [ -f "/usr/share/pve-microvm/initrd" ]; then
+        INITRD="/usr/share/pve-microvm/initrd"
+    else
+        INITRD=""
+    fi
 else
     KERNEL="/boot/vmlinuz-$(uname -r)"
     INITRD="/boot/initrd.img-$(uname -r)"
@@ -144,7 +148,13 @@ for tool in skopeo umoci qemu-img mkfs.ext4; do
     command -v "$tool" >/dev/null 2>&1 || die "required tool not found: $tool"
 done
 
-[ -f "$KERNEL" ] || die "kernel not found at $KERNEL (install pve-microvm package first)"
+if [ ! -f "$KERNEL" ]; then
+    # Fallback to host kernel
+    KERNEL="/boot/vmlinuz-$(uname -r)"
+    INITRD="/boot/initrd.img-$(uname -r)"
+    [ -f "$KERNEL" ] || die "no kernel found (neither shipped nor host)"
+    log "Using host kernel: $KERNEL"
+fi
 
 log "Creating microvm template from $IMAGE"
 log "  VMID:    $TEMPLATE_VMID"

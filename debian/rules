@@ -28,6 +28,9 @@ override_dh_auto_install:
 	if [ -f kernel/vmlinuz-microvm ]; then \
 		install -m 644 kernel/vmlinuz-microvm $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/vmlinuz; \
 	fi
+	if [ -f kernel/initrd-microvm ]; then \
+		install -m 644 kernel/initrd-microvm $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/initrd; \
+	fi
 
 	# Install kernel build tooling
 	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm/kernel

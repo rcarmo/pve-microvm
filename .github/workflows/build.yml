@@ -28,14 +28,16 @@ jobs:
         run: |
           cd kernel
           ./build-kernel.sh --version 6.12.22 --output "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
-          ls -lh "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
+          ls -lh "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm" "$GITHUB_WORKSPACE/kernel/initrd-microvm"
           file "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
 
-      - name: Upload kernel artifact
+      - name: Upload kernel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vmlinuz-microvm
-          path: kernel/vmlinuz-microvm
+          name: kernel-artifacts
+          path: |
+            kernel/vmlinuz-microvm
+            kernel/initrd-microvm
           retention-days: 90
 
   build-deb:
@@ -48,7 +50,7 @@ jobs:
       - name: Download kernel artifact
         uses: actions/download-artifact@v4
         with:
-          name: vmlinuz-microvm
+          name: kernel-artifacts
           path: kernel/
 
       - name: Verify kernel
@@ -94,7 +96,7 @@ jobs:
       - name: Download kernel
         uses: actions/download-artifact@v4
         with:
-          name: vmlinuz-microvm
+          name: kernel-artifacts
           path: release/
 
       - name: Download .deb
@@ -108,6 +110,7 @@ jobs:
         with:
           files: |
             release/vmlinuz-microvm
+            release/initrd-microvm
             release/pve-microvm_*.deb
           body_path: RELEASE_NOTES.md
           draft: false

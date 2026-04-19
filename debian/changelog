@@ -1,3 +1,12 @@
+pve-microvm (0.1.12-1) trixie; urgency=medium
+
+  * Ship minimal initrd with virtio modules (fixes net/serial/balloon).
+  * Re-enable CONFIG_MODULES, build virtio drivers as modules.
+  * build-kernel.sh now produces vmlinuz + initrd-microvm.
+  * Template uses shipped kernel+initrd (256 MB RAM is enough).
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 15:30:00 +0000
+
 pve-microvm (0.1.11-1) trixie; urgency=medium
 
   * Template: auto-detect kernel, use host kernel+initrd as fallback.
