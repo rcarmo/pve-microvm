@@ -113,7 +113,7 @@ make modules_install INSTALL_MOD_PATH="$MOD_DIR" INSTALL_MOD_STRIP=1 2>&1 | tail
 # Build minimal initramfs with just the virtio modules
 echo "Building initramfs..."
 INITRD_DIR=$(mktemp -d)
-mkdir -p "$INITRD_DIR"/{bin,lib/modules,proc,sys,dev}
+mkdir -p "$INITRD_DIR"/{bin,lib/modules,proc,sys,dev,mnt,tmp}
 
 # Copy virtio modules
 find "$MOD_DIR" -name 'virtio_net.ko*' -o -name 'virtio_balloon.ko*' -o -name 'virtio_console.ko*' \
@@ -127,31 +127,43 @@ echo "  Modules: $(ls "$INITRD_DIR/lib/modules/" | wc -l) files, $(du -sh "$INIT
 # Create init script that loads modules then execs real init
 cat > "$INITRD_DIR/init" <<'INITSCRIPT'
 #!/bin/sh
+export PATH=/bin
 mount -t proc proc /proc
 mount -t sysfs sys /sys
 mount -t devtmpfs dev /dev
 
-# Load virtio modules
+# Load virtio modules in dependency order
 for mod in /lib/modules/virtio.ko* /lib/modules/virtio_ring.ko* \
-           /lib/modules/virtio_mmio.ko* /lib/modules/virtio_net.ko* \
-           /lib/modules/virtio_console.ko* /lib/modules/virtio_balloon.ko* \
+           /lib/modules/virtio_mmio.ko* \
            /lib/modules/failover.ko* /lib/modules/net_failover.ko* \
+           /lib/modules/virtio_net.ko* \
+           /lib/modules/virtio_console.ko* \
+           /lib/modules/virtio_balloon.ko* \
            /lib/modules/virtio_rng.ko*; do
     [ -f "$mod" ] && insmod "$mod" 2>/dev/null
 done
 
-# Give devices a moment to appear
-sleep 0.1
+# Wait for root device to appear (modules need a moment)
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    [ -b /dev/vda ] && break
+    sleep 0.2
+done
 
-# Switch to real root
-mount /dev/vda /mnt 2>/dev/null || mount -t ext4 /dev/vda /mnt 2>/dev/null
-if [ -d /mnt/sbin ]; then
-    umount /proc /sys /dev 2>/dev/null
-    exec switch_root /mnt /sbin/init
+# Mount and switch to real root
+if [ -b /dev/vda ]; then
+    mount -t ext4 /dev/vda /mnt 2>/dev/null || mount /dev/vda /mnt 2>/dev/null
+    if [ -x /mnt/sbin/init ] || [ -L /mnt/sbin/init ]; then
+        # Move mounts into new root
+        mount --move /proc /mnt/proc 2>/dev/null || umount /proc
+        mount --move /sys /mnt/sys 2>/dev/null || umount /sys
+        mount --move /dev /mnt/dev 2>/dev/null || umount /dev
+        exec switch_root /mnt /sbin/init
+    fi
 fi
 
-# Fallback: no root, just exec init from kernel cmdline
-exec /sbin/init
+# Fallback: drop to shell
+echo "pve-microvm: root mount failed, dropping to shell"
+exec /bin/sh
 INITSCRIPT
 chmod 755 "$INITRD_DIR/init"
 

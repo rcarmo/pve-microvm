@@ -1,3 +1,11 @@
+pve-microvm (0.1.14-1) trixie; urgency=medium
+
+  * Fix initrd: add /mnt dir, robust init with device wait loop.
+  * Fix module load order (dependency-aware).
+  * Fallback to shell if root mount fails.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 16:30:00 +0000
+
 pve-microvm (0.1.13-1) trixie; urgency=medium
 
   * Fix initrd: install busybox-static in CI, fix static detection.
