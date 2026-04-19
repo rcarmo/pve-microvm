@@ -343,6 +343,11 @@ sub microvm_config_to_command {
             }
         }
 
+        # Auto-inject rdinit=/init if using initrd and not already specified
+        if ($args_str =~ m|-initrd| && $args_str !~ m|rdinit=|) {
+            $args_str =~ s|(-append ")|$1rdinit=/init |;
+        }
+
         # Parse respecting double-quoted strings
         my @args;
         while ($args_str =~ /\G\s*("[^"]*"|\S+)/g) {

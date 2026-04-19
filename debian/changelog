@@ -1,3 +1,12 @@
+pve-microvm (0.1.15-1) trixie; urgency=medium
+
+  * Fix: add rdinit=/init to kernel cmdline when using initrd.
+  * Without this, kernel bypasses initrd and mounts root directly,
+    so virtio modules never load.
+  * Add grep/dmesg/cat/ls/ip to initrd busybox symlinks.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 17:00:00 +0000
+
 pve-microvm (0.1.14-1) trixie; urgency=medium
 
   * Fix initrd: add /mnt dir, robust init with device wait loop.

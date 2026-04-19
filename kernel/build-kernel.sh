@@ -188,7 +188,7 @@ fi
 if [ -n "$BUSYBOX" ] && [ -f "$BUSYBOX" ]; then
     cp "$BUSYBOX" "$INITRD_DIR/bin/busybox" 2>/dev/null || true
     chmod 755 "$INITRD_DIR/bin/busybox"
-    for cmd in sh mount umount insmod modprobe switch_root sleep; do
+    for cmd in sh mount umount insmod modprobe switch_root sleep grep dmesg cat ls ip; do
         ln -sf busybox "$INITRD_DIR/bin/$cmd"
     done
 else
