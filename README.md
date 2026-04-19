@@ -151,6 +151,7 @@ qm terminal 900
 | [ ] | **Performance benchmarking** — document boot time, memory overhead, I/O throughput | Low | Medium | Medium |
 | [ ] | **Upstream proposal** — RFC patch series for Proxmox pve-devel mailing list | Low | High | High |
 | [ ] | **Plan 9 / 9Front microVM** — boot Plan 9 or 9Front as a microvm guest (different kernel, virtio drivers, console) | Low | Low | High |
+| [ ] | **AArch64 guest support** — microvm on ARM64 PVE hosts (different machine type, kernel config, virtio transport) | Low | Medium | High |
 
 ---
 
