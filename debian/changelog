@@ -1,3 +1,13 @@
+pve-microvm (0.1.21-1) trixie; urgency=medium
+
+  * vsock: host↔guest sockets (CID = VMID + 1000).
+  * virtiofs: pve-microvm-share for host directory sharing.
+  * SSH agent forwarding: pve-microvm-ssh-agent via vsock.
+  * Kernel config: add VSOCKETS + VIRTIO_FS.
+  * Custom microvm-agent service with retry.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 22:00:00 +0000
+
 pve-microvm (0.1.20-1) trixie; urgency=medium
 
   * Fix initrd: mount devtmpfs in new root before switch_root.

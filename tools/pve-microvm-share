@@ -1,0 +1,95 @@
+#!/bin/bash
+# pve-microvm-share — share a host directory into a microvm guest via virtiofs
+#
+# Usage:
+#   pve-microvm-share <vmid> <host-path>     # start sharing
+#   pve-microvm-share <vmid> --stop          # stop sharing
+#   pve-microvm-share <vmid> --status        # check status
+#
+# The guest mounts with:
+#   mount -t virtiofs shared /mnt/shared
+#
+# Requires: virtiofsd, the VM must be stopped when starting the share
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+VMID="${1:-}"
+HOSTPATH="${2:-}"
+SOCKET_DIR="/var/run/pve-microvm"
+
+usage() {
+    echo "Usage: $PROG <vmid> <host-path>    # share directory"
+    echo "       $PROG <vmid> --stop         # stop sharing"
+    echo "       $PROG <vmid> --status       # check status"
+    echo ""
+    echo "Guest mount: mount -t virtiofs shared /mnt/shared"
+    exit 1
+}
+
+[ -n "$VMID" ] || usage
+
+SOCKET="$SOCKET_DIR/${VMID}-virtiofs.sock"
+PIDFILE="$SOCKET_DIR/${VMID}-virtiofsd.pid"
+
+mkdir -p "$SOCKET_DIR"
+
+case "${HOSTPATH}" in
+    --stop)
+        if [ -f "$PIDFILE" ]; then
+            kill "$(cat "$PIDFILE")" 2>/dev/null || true
+            rm -f "$PIDFILE" "$SOCKET"
+            echo "Stopped virtiofs share for VM $VMID"
+        else
+            echo "No active share for VM $VMID"
+        fi
+        ;;
+    --status)
+        if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+            echo "Active: virtiofsd running (PID $(cat "$PIDFILE"))"
+            echo "Socket: $SOCKET"
+        else
+            echo "Inactive"
+        fi
+        ;;
+    "")
+        usage
+        ;;
+    *)
+        [ -d "$HOSTPATH" ] || { echo "ERROR: $HOSTPATH is not a directory"; exit 1; }
+        command -v virtiofsd >/dev/null 2>&1 || { echo "ERROR: virtiofsd not installed"; exit 1; }
+
+        # Stop any existing share
+        if [ -f "$PIDFILE" ]; then
+            kill "$(cat "$PIDFILE")" 2>/dev/null || true
+            rm -f "$PIDFILE" "$SOCKET"
+        fi
+
+        echo "Starting virtiofs share:"
+        echo "  VM:   $VMID"
+        echo "  Path: $HOSTPATH"
+        echo "  Socket: $SOCKET"
+
+        # Start virtiofsd
+        virtiofsd \
+            --socket-path="$SOCKET" \
+            --shared-dir="$HOSTPATH" \
+            --sandbox=chroot \
+            --log-level=warn &
+        VFSD_PID=$!
+        echo "$VFSD_PID" > "$PIDFILE"
+
+        sleep 0.5
+        if kill -0 "$VFSD_PID" 2>/dev/null; then
+            echo "virtiofsd started (PID $VFSD_PID)"
+            echo ""
+            echo "Now start the VM. Inside the guest:"
+            echo "  mkdir -p /mnt/shared"
+            echo "  mount -t virtiofs shared /mnt/shared"
+        else
+            echo "ERROR: virtiofsd failed to start"
+            rm -f "$PIDFILE" "$SOCKET"
+            exit 1
+        fi
+        ;;
+esac

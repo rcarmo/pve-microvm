@@ -1,0 +1,76 @@
+#!/bin/bash
+# pve-microvm-ssh-agent — forward host SSH agent into a microvm guest via vsock
+#
+# Usage:
+#   pve-microvm-ssh-agent <vmid>       # start forwarding
+#   pve-microvm-ssh-agent <vmid> --stop
+#
+# Host side: binds to vsock CID of the guest on port 2222
+# Guest side: connect with socat or ssh-agent-vsock
+#
+# Inside the guest:
+#   export SSH_AUTH_SOCK=/tmp/ssh-agent.sock
+#   socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork VSOCK-CONNECT:2:2222 &
+#   ssh-add -l    # lists host keys
+#   git clone git@github.com:...  # uses host keys
+#
+# Requires: socat on both host and guest, SSH_AUTH_SOCK set on host
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+VMID="${1:-}"
+ACTION="${2:-start}"
+VSOCK_PORT=2222
+PIDFILE="/var/run/pve-microvm/${VMID}-ssh-agent.pid"
+
+[ -n "$VMID" ] || { echo "Usage: $PROG <vmid> [--stop]"; exit 1; }
+mkdir -p /var/run/pve-microvm
+
+case "$ACTION" in
+    --stop)
+        if [ -f "$PIDFILE" ]; then
+            kill "$(cat "$PIDFILE")" 2>/dev/null || true
+            rm -f "$PIDFILE"
+            echo "Stopped SSH agent forwarding for VM $VMID"
+        else
+            echo "No active forwarding for VM $VMID"
+        fi
+        ;;
+    *)
+        [ -n "${SSH_AUTH_SOCK:-}" ] || { echo "ERROR: SSH_AUTH_SOCK not set"; exit 1; }
+        command -v socat >/dev/null 2>&1 || { echo "ERROR: socat not installed"; exit 1; }
+
+        # CID = vmid + 1000 (must match MicroVM.pm)
+        CID=$((VMID + 1000))
+
+        # Stop any existing
+        [ -f "$PIDFILE" ] && { kill "$(cat "$PIDFILE")" 2>/dev/null || true; rm -f "$PIDFILE"; }
+
+        echo "Starting SSH agent forwarding:"
+        echo "  VM CID: $CID"
+        echo "  Port:   $VSOCK_PORT"
+        echo "  Agent:  $SSH_AUTH_SOCK"
+
+        # Forward: listen on vsock, connect to local SSH agent
+        socat \
+            VSOCK-LISTEN:${VSOCK_PORT},fork \
+            UNIX-CONNECT:${SSH_AUTH_SOCK} &
+        SOCAT_PID=$!
+        echo "$SOCAT_PID" > "$PIDFILE"
+
+        sleep 0.5
+        if kill -0 "$SOCAT_PID" 2>/dev/null; then
+            echo "Forwarding active (PID $SOCAT_PID)"
+            echo ""
+            echo "Inside the guest:"
+            echo "  export SSH_AUTH_SOCK=/tmp/ssh-agent.sock"
+            echo "  socat UNIX-LISTEN:\$SSH_AUTH_SOCK,fork VSOCK-CONNECT:2:${VSOCK_PORT} &"
+            echo "  ssh-add -l"
+        else
+            echo "ERROR: socat failed to start"
+            rm -f "$PIDFILE"
+            exit 1
+        fi
+        ;;
+esac

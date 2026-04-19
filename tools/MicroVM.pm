@@ -328,6 +328,31 @@ sub microvm_config_to_command {
         push @$cmd, '-device', $device_cmd;
     }
 
+    # ── vsock (host↔guest fast communication) ──────────────────
+    # vsock provides a direct socket channel between host and guest
+    # without requiring networking. CID is vmid + 1000 to avoid conflicts.
+    # Guest uses: socat - VSOCK-CONNECT:2:<port>  (CID 2 = host)
+    # Host uses:  socat - VSOCK-CONNECT:<cid>:<port>
+    if (-e '/dev/vhost-vsock') {
+        my $cid = $vmid + 1000;  # unique CID per VM
+        push @$cmd, '-device', "vhost-vsock-pci-non-transitional,guest-cid=$cid";
+    }
+
+    # ── virtiofs (shared host directories) ───────────────────
+    # Shares host directories into the guest via virtiofs.
+    # Configured via VM description or a config file.
+    # Format in args: -virtfs <tag>:/host/path
+    # The guest mounts with: mount -t virtiofs <tag> /mnt/shared
+    #
+    # For now, check if virtiofsd socket exists for this VM
+    my $virtiofs_socket = "/var/run/pve-microvm/${vmid}-virtiofs.sock";
+    if (-S $virtiofs_socket) {
+        push @$cmd, '-chardev', "socket,id=virtiofs0,path=$virtiofs_socket";
+        push @$cmd, '-device', 'vhost-user-fs-pci,queue-size=1024,chardev=virtiofs0,tag=shared';
+        push @$cmd, '-object', 'memory-backend-memfd,id=mem,size=' . ($conf->{memory} || 512) . 'M,share=on';
+        push @$cmd, '-numa', 'node,memdev=mem';
+    }
+
     # ── Kernel / initrd / cmdline ────────────────────────────────
     # Passed through from the args config option.
     # Expected format:

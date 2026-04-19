@@ -128,9 +128,9 @@ qm terminal 900
 | [x] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
 | [x] | **Linked clones** — LVM snapshot clones work, instant creation | Critical | High | Low |
 | [x] | **dpkg trigger** — auto-reapply patches when qemu-server files change | Critical | High | Low |
-| [ ] | **SSH agent forwarding** — forward host SSH agent into guest via vsock (git clone without exposing keys) | High | High | Medium |
-| [ ] | **vsock (host↔guest sockets)** — fast communication without networking | High | High | Medium |
-| [ ] | **virtiofs (shared folders)** — mount host workspace into guest without network | High | High | High |
+| [x] | **SSH agent forwarding** — pve-microvm-ssh-agent via vsock | High | High | Medium |
+| [x] | **vsock (host↔guest sockets)** — implemented, CID=VMID+1000 without networking | High | High | Medium |
+| [x] | **virtiofs (shared folders)** — pve-microvm-share via virtiofsd | High | High | High |
 | [x] | **`qm shutdown` without agent** — use `qm stop` (QMP system_powerdown sends ACPI which microvm ignores) | High | Medium | Low |
 | [x] | **Disk resize** — `qm disk resize` works on LVM-thin | High | Medium | Low |
 | [x] | **vzdump backup** — stop-mode backup works (8s for 256MB disk) | High | Medium | Medium |
@@ -149,7 +149,7 @@ qm terminal 900
 | [x] | **Nested virtualization** — KVM with -cpu host passes through | Medium | Medium | Low |
 | [ ] | **GPU passthrough (exploratory)** — investigate virtio-gpu on mmio for ML workloads | Low | Medium | High |
 | [ ] | **Ephemeral VMs** — single-command run-and-destroy workflow like `smolvm machine run` | Medium | High | Medium |
-| [ ] | **Volume mounts** — attach host directories into guest at create time (virtiofs or 9p) | High | High | High |
+| [x] | **Volume mounts** — via virtiofs (pve-microvm-share) | High | High | High |
 | [ ] | **Pre-baked images** — ship ready-to-boot qcow2 templates (avoid chroot build at install) | Medium | Medium | Medium |
 | [x] | **systemd-networkd auto-enable** — ensure DHCP works on first boot without manual config | High | High | Low |
 | [x] | **Guest agent on virtio-mmio** — fix udev/device path for qemu-ga on mmio bus | High | High | Low |

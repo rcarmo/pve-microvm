@@ -125,3 +125,56 @@ microvm with PCIe uses `virtio-*-pci-non-transitional` devices:
 | Console | ISA serial (`isa-serial=on`) |
 
 Boot flow: kernel → initrd (loads virtio modules) → switch_root → systemd
+
+## Sharing host directories (virtiofs)
+
+Mount a host directory into the guest:
+
+```bash
+# On the host: start sharing before VM boot
+pve-microvm-share 900 /path/to/workspace
+
+# Start the VM
+qm start 900
+
+# Inside the guest:
+mkdir -p /mnt/shared
+mount -t virtiofs shared /mnt/shared
+ls /mnt/shared   # host files visible
+```
+
+To stop sharing:
+```bash
+pve-microvm-share 900 --stop
+```
+
+## SSH agent forwarding (via vsock)
+
+Forward your host SSH keys into the guest without exposing them:
+
+```bash
+# On the host:
+pve-microvm-ssh-agent 900
+
+# Inside the guest:
+export SSH_AUTH_SOCK=/tmp/ssh-agent.sock
+socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork VSOCK-CONNECT:2:2222 &
+ssh-add -l              # lists host keys
+git clone git@github.com:org/repo.git  # uses host keys
+```
+
+Private keys never enter the guest — only the agent protocol
+is forwarded over the vsock channel.
+
+## vsock communication
+
+Each microvm gets a vsock CID (Context ID = VMID + 1000).
+Host and guest can communicate without networking:
+
+```bash
+# Host → Guest:
+socat - VSOCK-CONNECT:<cid>:<port>
+
+# Guest → Host (CID 2 = host):
+socat - VSOCK-CONNECT:2:<port>
+```
