@@ -93,10 +93,12 @@ make olddefconfig >/dev/null 2>&1
 
 # Verify critical configs survived olddefconfig
 echo "Verifying critical configs..."
-for cfg in CONFIG_VIRTIO_NET CONFIG_VIRTIO_BALLOON CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_BLK CONFIG_VIRTIO_MMIO CONFIG_MODULES; do
-    val=$(grep "^${cfg}=" .config 2>/dev/null || echo "MISSING")
+for cfg in CONFIG_VIRTIO_NET CONFIG_VIRTIO_BALLOON CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_BLK CONFIG_VIRTIO_MMIO CONFIG_MODULES CONFIG_NET CONFIG_NETDEVICES CONFIG_NET_FAILOVER CONFIG_FAILOVER CONFIG_ETHERNET CONFIG_VIRTIO_PCI CONFIG_PCI CONFIG_NET_CORE CONFIG_DIMLIB; do
+    val=$(grep "^${cfg}=" .config 2>/dev/null || echo "${cfg} NOT SET")
     echo "  $val"
 done
+echo "All virtio configs:"
+grep '^CONFIG_VIRTIO' .config
 
 # Build kernel + modules
 NCPU=$(nproc)
