@@ -51,3 +51,10 @@ Can be increased in `MicroVM.pm`.
 QEMU's serial chardev socket does not buffer output when no client is
 connected. Boot messages may be lost. Connect via `qm terminal` after boot
 to get an interactive shell.
+
+## Kernel config drift
+
+The Firecracker 6.1 base kernel config may silently lose drivers when
+built on newer kernel versions (e.g., 6.12). The PVE overlay forces
+critical drivers (`virtio_net`, `virtio_balloon`, `virtio_console`) to
+`=y`. Always verify the final `.config` after `make olddefconfig`.

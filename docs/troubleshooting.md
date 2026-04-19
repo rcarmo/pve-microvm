@@ -69,3 +69,16 @@ The VM must exist first:
 qm create <vmid> --machine microvm --memory 256
 pve-oci-import --image alpine:latest --vmid <vmid>
 ```
+
+## No network / no guest agent / no balloon
+
+If `virtio_net`, `virtio_console`, or `virtio_balloon` aren't probing,
+the kernel may have been built without these drivers. Check:
+
+```bash
+strings /usr/share/pve-microvm/vmlinuz | grep -c virtio_net
+# Should be > 0
+```
+
+If zero, rebuild the kernel — the PVE overlay in
+`kernel/pve-microvm-overlay.config` forces these to `=y`.

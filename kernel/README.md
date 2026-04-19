@@ -133,3 +133,13 @@ When Firecracker updates their kernel config (e.g., for a new LTS series):
 2. Replace `base-x86_64-6.1.config`
 3. Verify the overlay still applies cleanly
 4. Rebuild and test
+
+## Known issue: Firecracker 6.1 config on kernel 6.12
+
+`make olddefconfig` on kernel 6.12 sources with the Firecracker 6.1 base
+config **silently drops** `CONFIG_VIRTIO_NET`, `CONFIG_VIRTIO_BALLOON`, and
+`CONFIG_VIRTIO_CONSOLE` due to changed Kconfig dependencies.
+
+The PVE overlay explicitly forces these back to `=y`. If you update the
+base config or kernel version, always verify these are present in the
+final `.config` after `olddefconfig`.

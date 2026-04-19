@@ -136,7 +136,10 @@ sub microvm_config_to_command {
     # isa-serial=on  — needed for serial console
     # rtc=on         — needed for timekeeping
     # pit/pic=off    — not needed, reduces attack surface
-    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on,auto-kernel-cmdline=on';
+    # microvm with PCIe enabled — virtio-mmio device discovery is broken
+    # on kernel 6.12 built from Firecracker 6.1 config (only virtio-blk probes).
+    # PCIe mode adds ~50ms but ALL virtio devices work reliably via PCI transport.
+    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on';
 
     # Use qboot for instant kernel loading (no SeaBIOS banner)
     my $qboot = '/usr/share/kvm/qboot.rom';
@@ -186,7 +189,7 @@ sub microvm_config_to_command {
     push @$cmd, '-m', "${memory}M";
 
     # ── Balloon device ───────────────────────────────────────────
-    # virtio-balloon-device on mmio bus suppresses the PVE post-start
+    # virtio-balloon-device suppresses the PVE post-start
     # balloon warning and enables memory reporting.
     push @$cmd, '-device', 'virtio-balloon-device,id=balloon0';
 
@@ -208,7 +211,7 @@ sub microvm_config_to_command {
     }
 
     # ── Block devices ────────────────────────────────────────────
-    # Use virtio-blk-device (virtio-mmio) instead of PCI variants.
+    # Use virtio-blk-device (virtio-mmio.
     # Supports all PVE storage backends: local dir, LVM, LVM-thin, ZFS,
     # Ceph/RBD, NFS, CIFS, GlusterFS — anything PVE::Storage::path() resolves.
     #
@@ -306,7 +309,7 @@ sub microvm_config_to_command {
     }
 
     # ── Network ──────────────────────────────────────────────────
-    # Use virtio-net-device (virtio-mmio) instead of PCI variants
+    # Use virtio-net-device (virtio-mmio
     for (my $i = 0; $i < 6; $i++) {
         my $netkey = "net$i";
         next if !$conf->{$netkey};
