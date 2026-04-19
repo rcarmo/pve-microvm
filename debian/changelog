@@ -1,3 +1,11 @@
+pve-microvm (0.1.10-1) trixie; urgency=medium
+
+  * Fix kernel build: verify and force critical virtio configs after olddefconfig.
+  * build-kernel.sh now checks CONFIG_VIRTIO_NET/BALLOON/CONSOLE after olddefconfig
+    and re-forces them if dropped.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 19 Apr 2026 14:30:00 +0000
+
 pve-microvm (0.1.9-1) trixie; urgency=medium
 
   * Fix kernel: force CONFIG_VIRTIO_NET/BALLOON/CONSOLE=y in overlay.

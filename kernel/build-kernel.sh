@@ -92,6 +92,19 @@ fi
 # Resolve dependencies and set defaults for new options
 make olddefconfig >/dev/null 2>&1
 
+# Verify critical configs survived olddefconfig
+echo "Verifying critical configs..."
+for cfg in CONFIG_VIRTIO_NET CONFIG_VIRTIO_BALLOON CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_BLK CONFIG_VIRTIO_MMIO; do
+    val=$(grep "^${cfg}=" .config 2>/dev/null || echo "MISSING")
+    echo "  $val"
+    if [ "$val" = "MISSING" ] || echo "$val" | grep -q '=n'; then
+        echo "ERROR: $cfg is not set! Forcing..."
+        echo "${cfg}=y" >> .config
+    fi
+done
+# Re-run olddefconfig after forcing
+make olddefconfig >/dev/null 2>&1
+
 # Build
 NCPU=$(nproc)
 echo "Building with ${NCPU} CPUs..."
