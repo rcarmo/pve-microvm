@@ -282,6 +282,23 @@ APTSRC
         systemctl enable qemu-guest-agent 2>/dev/null || true
         systemctl enable ssh 2>/dev/null || true
         systemctl enable cloud-init 2>/dev/null || true
+        systemctl enable systemd-networkd 2>/dev/null || true
+        systemctl enable systemd-resolved 2>/dev/null || true
+
+        # Fix guest agent for virtio-mmio: remove device binding
+        # (the virtio-serial port exists but udev may not create the symlink)
+        mkdir -p /etc/systemd/system/qemu-guest-agent.service.d
+        cat > /etc/systemd/system/qemu-guest-agent.service.d/microvm.conf <<QGAFIX
+[Unit]
+# Remove device binding — virtio-mmio ports may not get udev symlinks
+BindsTo=
+After=
+
+[Service]
+# Use the virtio port directly
+ExecStart=
+ExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport0p0
+QGAFIX
 
         # Configure cloud-init for PVE nocloud
         mkdir -p /etc/cloud/cloud.cfg.d
