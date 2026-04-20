@@ -297,6 +297,8 @@ APTSRC
         # Enable serial console and essential services
         systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
         systemctl enable qemu-guest-agent 2>/dev/null || true
+        # Force-enable: the stock service is 'static' with no Install section
+        ln -sf /usr/lib/systemd/system/qemu-guest-agent.service /etc/systemd/system/multi-user.target.wants/qemu-guest-agent.service 2>/dev/null || true
         systemctl enable ssh 2>/dev/null || true
         systemctl enable cloud-init 2>/dev/null || true
         systemctl enable systemd-networkd 2>/dev/null || true
@@ -314,10 +316,11 @@ APTSRC
         printf "[Unit]\nDescription=microvm serial console\nAfter=systemd-user-sessions.service\n\n[Service]\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\nRestart=always\nRestartSec=0\nType=idle\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-console.service
         systemctl enable microvm-console.service 2>/dev/null || true
 
-        # Fix guest agent: remove device binding -- same udev issue
-        # the virtio-serial port exists but udev may not create the symlink
-        mkdir -p /etc/systemd/system/qemu-guest-agent.service.d
-        printf "[Unit]\nBindsTo=\nAfter=\n\n[Service]\nExecStart=\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1 --retry-path\nRestart=always\nRestartSec=3\n" > /etc/systemd/system/qemu-guest-agent.service.d/microvm.conf
+        # Mask the stock qemu-guest-agent service -- its BindsTo cannot
+        # be cleared via drop-in on Trixie. Use a custom service instead.
+        systemctl mask qemu-guest-agent.service 2>/dev/null || true
+        printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
+        systemctl enable microvm-agent.service 2>/dev/null || true
 
         # Configure cloud-init for PVE nocloud
         mkdir -p /etc/cloud/cloud.cfg.d
