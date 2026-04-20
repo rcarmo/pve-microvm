@@ -91,7 +91,7 @@ qm terminal 900
 | Host kernel | 6.17.13-2-pve |
 | Guest kernel | 6.12.22 LTS |
 | Storage | LVM-thin |
-| Test node | z83ii (Intel Atom, 512 MB RAM) |
+| Test node | z83ii (Intel Atom x5-Z8350, 2 GB RAM) |
 
 ---
 
