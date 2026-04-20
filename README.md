@@ -40,7 +40,7 @@ or integrations exist for the QEMU microvm machine type.
 
 ```bash
 # Install
-dpkg -i pve-microvm_0.1.4-1_all.deb
+dpkg -i pve-microvm_0.1.21-1_all.deb
 
 # Create a template from debian:trixie-slim (28 MB)
 pve-microvm-template
@@ -76,8 +76,10 @@ qm terminal 900
 | **`pve-microvm-patch`** | Safe apply/revert of qemu-server patches |
 | **`pve-microvm-template`** | Create PVE templates from OCI images for instant cloning |
 | **`pve-oci-import`** | Convert any OCI image to a bootable microvm disk |
+| **`pve-microvm-share`** | Share host directories into guest via virtiofs |
+| **`pve-microvm-ssh-agent`** | Forward host SSH agent into guest via vsock |
 | **`microvm-init`** | Minimal init for images without one (e.g., `debian:trixie-slim`) |
-| **`vmlinuz-microvm`** | Pre-built 6.12 LTS kernel (all virtio built-in, no initrd needed) |
+| **`vmlinuz-microvm`** | Pre-built 6.12.22 kernel with PCIe virtio + vsock + virtiofs |
 | **Web UI extension** | `microvm` in machine dropdown, ⚡ icon, xterm.js serial console |
 
 ## Tested on
@@ -89,16 +91,18 @@ qm terminal 900
 | Host kernel | 6.17.13-2-pve |
 | Guest kernel | 6.12.22 LTS |
 | Storage | LVM-thin |
+| Test node | z83ii (Intel Atom, 512 MB RAM) |
 
 ---
 
 ## Documentation
 
 - **[Installation](docs/installation.md)** — install, verify, uninstall
-- **[Usage Guide](docs/usage.md)** — templates, OCI import, console, networking, guest agent
+- **[Usage Guide](docs/usage.md)** — templates, OCI import, console, networking, guest agent, virtiofs, vsock
 - **[Configuration](docs/configuration.md)** — supported/unsupported options, example config
 - **[Architecture](docs/architecture.md)** — how it works, QEMU command line, storage backends
-- **[Kernel Guide](kernel/README.md)** — build config, why Firecracker's config, PVE overlay
+- **[Kernel Guide](kernel/README.md)** — build config, defconfig base, PVE overlay
+- **[Known Issues](docs/known-issues.md)** — agent timing, serial buffering, slow hardware
 - **[Limitations](docs/limitations.md)** — what doesn't work (yet)
 - **[Troubleshooting](docs/troubleshooting.md)** — common issues and fixes
 - **[Development](docs/development.md)** — repo structure, building, testing, references
@@ -110,58 +114,58 @@ qm terminal 900
 ### Shipped
 
 - [x] `qm create/start/stop/destroy` with microvm
-- [x] Serial console via `qm terminal` and PVE web UI
+- [x] Serial console via `qm terminal` and PVE web UI (xterm.js)
 - [x] OCI image import and template cloning
-- [x] All PVE storage backends (LVM, ZFS, Ceph, NFS)
-- [x] Pre-built microvm kernel (6.12 LTS)
+- [x] All PVE storage backends (LVM, LVM-thin, ZFS, Ceph, NFS)
+- [x] Pre-built microvm kernel (6.12.22 from defconfig)
 - [x] Web UI machine type dropdown
 - [x] Balloon device for memory reporting
-- [x] Guest agent channel (virtio-serial-device)
-- [x] Networking (tap, bridge, VLAN)
+- [x] Guest agent (virtio-serial, auto-retry)
+- [x] Networking (tap, bridge, VLAN, DHCP via cloud-init)
 - [x] `microvm-init` for minimal OCI images
-- [x] GitHub Actions CI/CD with kernel build
+- [x] GitHub Actions CI/CD with kernel + initrd build
+- [x] Cloud-init / user-data — SSH keys, hostname, network config
+- [x] Linked clones — instant LVM snapshot cloning
+- [x] dpkg trigger — auto-reapply patches on `qemu-server` upgrades
+- [x] SSH agent forwarding via vsock (`pve-microvm-ssh-agent`)
+- [x] vsock host↔guest sockets (CID = VMID + 1000)
+- [x] virtiofs shared folders (`pve-microvm-share`)
+- [x] Volume mounts via virtiofs
+- [x] `qm shutdown` — graceful shutdown via guest agent
+- [x] Disk resize (`qm disk resize`)
+- [x] vzdump backup (stop-mode)
+- [x] Snapshots (`qm snapshot`)
+- [x] Firewall integration (tap on vmbr0)
+- [x] Resource accounting (cluster resources)
+- [x] `onboot` / startup order
+- [x] Nested virtualization (KVM passthrough)
+- [x] Suppress SeaBIOS (qboot auto-selected)
+- [x] systemd-networkd auto-enable
+- [x] Guest agent device path fix
 
 ### Planned
 
-| | Feature | Priority | Impact | Effort |
-|---|---|---|---|---|
-| [x] | **Cloud-init / user-data** — inject SSH keys, hostname, network config at clone time | Critical | High | Medium |
-| [x] | **Linked clones** — LVM snapshot clones work, instant creation | Critical | High | Low |
-| [x] | **dpkg trigger** — auto-reapply patches when qemu-server files change | Critical | High | Low |
-| [x] | **SSH agent forwarding** — pve-microvm-ssh-agent via vsock | High | High | Medium |
-| [x] | **vsock (host↔guest sockets)** — implemented, CID=VMID+1000 without networking | High | High | Medium |
-| [x] | **virtiofs (shared folders)** — pve-microvm-share via virtiofsd | High | High | High |
-| [x] | **`qm shutdown` without agent** — use `qm stop` (QMP system_powerdown sends ACPI which microvm ignores) | High | Medium | Low |
-| [x] | **Disk resize** — `qm disk resize` works on LVM-thin | High | Medium | Low |
-| [x] | **vzdump backup** — stop-mode backup works (8s for 256MB disk) | High | Medium | Medium |
-| [x] | **Firewall integration** — tap device on vmbr0, PVE firewall rules apply | High | Medium | Low |
-| [ ] | **Network off by default** — microvm boots with no network unless explicitly enabled (safer for sandboxes) | Medium | Medium | Low |
-| [ ] | **Egress allow-list** — restrict outbound network to specific hosts via PVE firewall or guest nftables | Medium | Medium | Medium |
-| [x] | **Suppress SeaBIOS banner** — qboot auto-selected by QEMU 10.x for microvm | Medium | Low | Low |
-| [ ] | **GUI: conditional panel hiding** — hide BIOS/EFI/USB/PCI tabs for microvm | Medium | Medium | Medium |
-| [ ] | **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
-| [ ] | **GUI: one-click clone** — "Create microvm" button that clones from template | Medium | Medium | Medium |
-| [x] | **Snapshots** — LVM snapshots work via `qm snapshot` | Medium | Medium | Medium |
-| [ ] | **Migration** — test live migration with reduced device model | Medium | Medium | Medium |
-| [ ] | **HA (High Availability)** — test with PVE HA manager | Medium | Medium | Medium |
-| [x] | **Resource accounting** — VM visible in cluster resources with CPU/mem/status | Medium | Low | Low |
-| [x] | **`onboot` / startup order** — PVE-level, works for microvm | Medium | Low | Low |
-| [x] | **Nested virtualization** — KVM with -cpu host passes through | Medium | Medium | Low |
-| [ ] | **GPU passthrough (exploratory)** — investigate virtio-gpu on mmio for ML workloads | Low | Medium | High |
-| [ ] | **Ephemeral VMs** — single-command run-and-destroy workflow like `smolvm machine run` | Medium | High | Medium |
-| [x] | **Volume mounts** — via virtiofs (pve-microvm-share) | High | High | High |
-| [ ] | **Pre-baked images** — ship ready-to-boot qcow2 templates (avoid chroot build at install) | Medium | Medium | Medium |
-| [x] | **systemd-networkd auto-enable** — ensure DHCP works on first boot without manual config | High | High | Low |
-| [x] | **Guest agent on virtio-mmio** — fix udev/device path for qemu-ga on mmio bus | High | High | Low |
-| [ ] | **9p filesystem sharing** — alternative to virtiofs for host↔guest files | Low | Medium | Medium |
-| [ ] | **CPU/memory hotplug** — dynamic scaling for agent workloads | Low | Medium | Medium |
-| [ ] | **Multiple kernel management** — ship/manage multiple kernel versions | Low | Low | Low |
-| [ ] | **Custom icon persistence** — ensure ⚡ icon works across all browsers/reloads | Low | Low | Low |
-| [ ] | **Performance benchmarking** — document boot time, memory overhead, I/O throughput | Low | Medium | Medium |
-| [ ] | **Upstream proposal** — RFC patch series for Proxmox pve-devel mailing list | Low | High | High |
-| [ ] | **Declarative VM config (Smolfile-style)** — TOML file describing image, resources, mounts, network for reproducible VMs | Low | Medium | Medium |
-| [ ] | **Plan 9 / 9Front microVM** — boot Plan 9 or 9Front as a microvm guest (different kernel, virtio drivers, console) | Low | Low | High |
-| [ ] | **AArch64 guest support** — microvm on ARM64 PVE hosts (different machine type, kernel config, virtio transport) | Low | Medium | High |
+| Feature | Priority | Impact | Effort |
+|---|---|---|---|
+| **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
+| **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
+| **GUI: conditional panel hiding** — hide unsupported tabs for microvm | Medium | Medium | Medium |
+| **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
+| **GUI: one-click clone** — "Create microvm" button from template | Medium | Medium | Medium |
+| **Migration** — test live migration | Medium | Medium | Medium |
+| **HA** — test with PVE HA manager | Medium | Medium | Medium |
+| **Ephemeral VMs** — run-and-destroy workflow | Medium | High | Medium |
+| **Pre-baked images** — ship ready-to-boot qcow2 templates | Medium | Medium | Medium |
+| **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
+| **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
+| **Multiple kernel management** — ship/manage versions | Low | Low | Low |
+| **Custom icon persistence** — ⚡ across browsers | Low | Low | Low |
+| **Performance benchmarking** — boot time, overhead, throughput | Low | Medium | Medium |
+| **Upstream proposal** — RFC for Proxmox pve-devel | Low | High | High |
+| **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
+| **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |
+| **Plan 9 / 9Front microVM** — alternative guest OS | Low | Low | High |
+| **AArch64 guest support** — ARM64 PVE hosts | Low | Medium | High |
 
 ---
 
