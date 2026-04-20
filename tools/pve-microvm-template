@@ -302,6 +302,11 @@ APTSRC
         systemctl enable systemd-networkd 2>/dev/null || true
         systemctl enable systemd-resolved 2>/dev/null || true
 
+        # DHCP fallback: systemd-networkd on Trixie has config matching issues
+        # with microvm devtmpfs. Use dhclient as a reliable fallback.
+        printf "[Unit]\nDescription=DHCP on eth0\nAfter=network.target\nWants=network.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStartPre=/sbin/ip link set eth0 up\nExecStart=/usr/sbin/dhclient -4 eth0\nExecStop=/usr/sbin/dhclient -r eth0\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-dhcp.service
+        systemctl enable microvm-dhcp.service 2>/dev/null || true
+
         # Create a custom console service that does not depend on udev device units
         # The stock serial-getty@ttyS0 requires dev-ttyS0.device which needs udev
         # events that devtmpfs from initrd does not generate
