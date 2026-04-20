@@ -44,7 +44,7 @@ or integrations exist for the QEMU microvm machine type.
 
 ```bash
 # Install
-dpkg -i pve-microvm_0.1.21-1_all.deb
+dpkg -i pve-microvm_0.1.23-1_all.deb
 
 # Create a template from debian:trixie-slim (28 MB)
 pve-microvm-template

@@ -6,8 +6,8 @@ Download the latest `.deb` from the [releases page](https://github.com/rcarmo/pv
 
 ```bash
 # Download and install
-wget https://github.com/rcarmo/pve-microvm/releases/download/v0.1.4/pve-microvm_0.1.4-1_all.deb
-dpkg -i pve-microvm_0.1.4-1_all.deb
+wget https://github.com/rcarmo/pve-microvm/releases/download/v0.1.4/pve-microvm_0.1.23-1_all.deb
+dpkg -i pve-microvm_0.1.23-1_all.deb
 apt-get install -f   # resolve any missing dependencies
 ```
 
