@@ -12,8 +12,9 @@ pve-microvm/
 │   ├── changelog
 │   ├── control
 │   ├── rules
-│   ├── pve-microvm.postinst
-│   ├── pve-microvm.prerm
+│   ├── pve-microvm.postinst          # Apply patches + dpkg trigger
+│   ├── pve-microvm.prerm             # Revert patches
+│   ├── pve-microvm.triggers          # Watch qemu-server files
 │   └── patches/
 ├── docs/                             # Documentation
 │   ├── pve-microvm-demo.gif
@@ -21,6 +22,7 @@ pve-microvm/
 │   ├── usage.md
 │   ├── architecture.md
 │   ├── configuration.md
+│   ├── known-issues.md
 │   ├── limitations.md
 │   ├── troubleshooting.md
 │   └── development.md
@@ -28,19 +30,21 @@ pve-microvm/
 │   ├── microvm-defaults.conf
 │   └── microvm-images.conf
 ├── kernel/                           # Kernel build
-│   ├── base-x86_64-6.1.config
-│   ├── pve-microvm-overlay.config
-│   ├── build-kernel.sh
+│   ├── pve-microvm-6.12.config       # Overlay on defconfig
+│   ├── build-kernel.sh               # Automated build
 │   └── README.md
 ├── tools/                            # Runtime tools
 │   ├── MicroVM.pm                    # Perl module
 │   ├── microvm-init                  # Init for minimal images
+│   ├── microvm-setup                 # First-boot package installer
 │   ├── pve-microvm-patch             # Patch manager
 │   ├── pve-microvm-template          # Template creator
-│   └── pve-oci-import                # OCI importer
+│   ├── pve-oci-import                # OCI importer
+│   ├── pve-microvm-share             # virtiofs share manager
+│   └── pve-microvm-ssh-agent         # SSH agent forwarder
 ├── ui/                               # Web UI extensions
-│   ├── pve-microvm.css
-│   └── pve-microvm.js
+│   ├── pve-microvm.css               # Icon + tag styles
+│   └── pve-microvm.js                # Wizard, hardware view, clone menu
 └── .github/workflows/
     ├── ci.yml                        # Build on push/PR
     └── build.yml                     # Release on tag
@@ -52,37 +56,33 @@ pve-microvm/
 # Build .deb (without kernel)
 dpkg-buildpackage -us -uc -b
 
-# Build kernel (requires build tools)
+# Build kernel + initrd
 cd kernel && ./build-kernel.sh
 
-# Full release (done by CI)
-git tag -a v0.1.5 -m "v0.1.5" && git push origin v0.1.5
+# Full release (done by CI on tag push)
+git tag -a v0.X.Y -m "..." && git push origin v0.X.Y
 ```
 
 ## Testing locally
 
 ```bash
-# On a test Proxmox node
 scp tools/MicroVM.pm root@pve:/usr/share/perl5/PVE/QemuServer/MicroVM.pm
-scp tools/pve-microvm-patch root@pve:/usr/share/pve-microvm/
-ssh root@pve /usr/share/pve-microvm/pve-microvm-patch apply
-
-# Test
+scp ui/pve-microvm.js root@pve:/usr/share/pve-manager/js/pve-microvm.js
 ssh root@pve qm create 999 --machine microvm --memory 128
 ssh root@pve qm destroy 999
 ```
 
 ## Key source references
 
-- `qemu-server/src/PVE/QemuServer/Machine.pm` — machine type definitions
-- `qemu-server/src/PVE/QemuServer.pm` — `config_to_command()` entry
-- [QEMU microvm source](https://gitlab.com/qemu-project/qemu/-/blob/master/hw/i386/microvm.c)
-- [Firecracker kernel configs](https://github.com/firecracker-microvm/firecracker/tree/main/resources/guest_configs)
+- `tools/MicroVM.pm` — QEMU command generation, device selection, config validation
+- `tools/pve-microvm-patch` — Python-based patching of Machine.pm and QemuServer.pm
+- `ui/pve-microvm.js` — ExtJS monkey-patches for PVE web UI
+- `kernel/build-kernel.sh` — defconfig + overlay + module + initrd build
+- `kernel/pve-microvm-6.12.config` — kernel config overlay
 
 ## References
 
 - [QEMU microvm docs](https://www.qemu.org/docs/master/system/i386/microvm.html)
-- [Ubuntu microvm docs](https://ubuntu.com/server/docs/explanation/virtualisation/qemu-microvm/)
 - [Proxmox `qemu-server` source](https://git.proxmox.com/git/qemu-server.git)
-- [Proxmox Developer Documentation](https://pve.proxmox.com/wiki/Developer_Documentation)
+- [Proxmox `pve-manager` source](https://git.proxmox.com/git/pve-manager.git)
 - [virtio-mmio specification](https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html)

@@ -2,6 +2,16 @@
 
 ## Creating a microvm guest
 
+### From the web UI
+
+1. Click **Create VM** in Proxmox
+2. On the **System** page, select **microvm** as the machine type
+3. BIOS, EFI, TPM, and vIOMMU options are automatically hidden
+4. Serial console and guest agent are auto-configured
+5. Complete the wizard as normal
+
+### From the CLI
+
 ```bash
 qm create <vmid> \
   --machine microvm \
@@ -15,24 +25,20 @@ qm create <vmid> \
   --args '-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=/dev/vda rw quiet"'
 ```
 
-**Key points:**
-- `-kernel` + `-initrd` are **required** — the initrd loads virtio modules
-- `--serial0 socket` enables `qm terminal`
-- `--vga serial0` makes PVE web UI open xterm.js serial console
-- `--agent 1` enables the guest agent channel
-
 ## Using templates (recommended)
 
 Create a template once, clone instantly:
 
 ```bash
 # Create template from debian:trixie-slim (28 MB, same Debian as PVE 9)
-# Includes cloud-init drive, systemd, networkd, SSH, qemu-guest-agent
+# Includes cloud-init, systemd, networkd, SSH, qemu-guest-agent
 pve-microvm-template
 
 # Clone new VMs
 qm clone 9000 901 --name agent-sandbox-1 --full
 qm clone 9000 902 --name agent-sandbox-2 --full
+
+# Or right-click a microvm template in the web UI → "⚡ Clone microvm"
 
 # Set SSH key and cloud-init options per clone
 qm set 901 --sshkeys ~/.ssh/authorized_keys
@@ -76,59 +82,33 @@ qm terminal <vmid>
 # Disconnect: Ctrl-O
 
 # Web UI: click "Console" — opens xterm.js serial terminal
-# (requires vga: serial0 in config)
 ```
+
+The web UI automatically uses xterm.js when `vga: serial0` is set.
 
 ## Networking
 
 Uses `virtio-net-pci-non-transitional` with PCIe on microvm.
-Works identically to standard virtio NICs.
 
 ```bash
 qm set 900 --net0 virtio,bridge=vmbr0              # Single NIC
 qm set 900 --net0 virtio,bridge=vmbr0,tag=100       # VLAN
 ```
 
-Inside the guest, configure via cloud-init or manually:
-```bash
-ip link set eth0 up
-dhclient eth0
-```
+DHCP is configured automatically via cloud-init and systemd-networkd.
 
 ## Guest agent
 
-Enables graceful `qm shutdown`, IP reporting, and filesystem freeze:
+Enables graceful `qm shutdown`, IP reporting, and filesystem freeze.
+The template configures it automatically with retry on startup.
 
 ```bash
 qm set 900 --agent 1
-# Agent starts automatically if installed in the template
 ```
-
-## Shutdown
-
-```bash
-qm shutdown 900    # Graceful (needs guest agent)
-qm stop 900        # Force stop
-qm destroy 900     # Remove VM and disks
-```
-
-## Architecture
-
-microvm with PCIe uses `virtio-*-pci-non-transitional` devices:
-
-| Device | Type |
-|---|---|
-| Block | `virtio-blk-pci-non-transitional` |
-| Network | `virtio-net-pci-non-transitional` |
-| Serial/Agent | `virtio-serial-pci-non-transitional` |
-| Balloon | `virtio-balloon-pci-non-transitional` |
-| Console | ISA serial (`isa-serial=on`) |
-
-Boot flow: kernel → initrd (loads virtio modules) → switch_root → systemd
 
 ## Sharing host directories (virtiofs)
 
-Mount a host directory into the guest:
+Mount a host directory into the guest without networking:
 
 ```bash
 # On the host: start sharing before VM boot
@@ -178,3 +158,22 @@ socat - VSOCK-CONNECT:<cid>:<port>
 # Guest → Host (CID 2 = host):
 socat - VSOCK-CONNECT:2:<port>
 ```
+
+## Shutdown
+
+```bash
+qm shutdown 900    # Graceful (via guest agent)
+qm stop 900        # Force stop
+qm destroy 900     # Remove VM and disks
+```
+
+## Web UI features
+
+When a VM uses `machine: microvm`:
+
+- **Hardware view**: USB, PCI passthrough, BIOS, EFI, TPM, audio rows are hidden
+- **Add hardware menu**: unsupported device types are disabled
+- **Machine edit**: vIOMMU and version options are hidden
+- **Console button**: opens xterm.js serial terminal (via `vga: serial0`)
+- **Resource tree**: microvm-tagged VMs show a ⚡ bolt icon in purple
+- **Template context menu**: right-click → "⚡ Clone microvm" for one-click cloning
