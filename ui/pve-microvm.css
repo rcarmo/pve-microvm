@@ -1,77 +1,36 @@
 /*
- * pve-microvm custom icon styles
- *
- * Adds a distinct icon for microvm guests in the Proxmox VE resource tree.
- *
- * How it works:
- * PVE uses Font Awesome icons for guest types. All QEMU VMs get `fa-desktop`.
- * Since microvm guests are still type=qemu, we can't change the icon at the
- * type level without patching JS. Instead, we use two approaches:
- *
- * 1. Tag-based: if a VM has the tag "microvm", override its icon via CSS
- * 2. Custom icon class: if pve-manager JS is patched to add a 'microvm' class
- *
- * Install this file to:
- *   /usr/share/pve-manager/css/pve-microvm.css
- *
- * And add to the PVE web page via a snippet or patch.
+ * pve-microvm UI styles
  */
 
-/*
- * Approach 1: Tag-based icon override
- *
- * When a VM has the tag "microvm", PVE renders a tag badge next to the name.
- * We style the tag itself to be visually distinct.
- */
+/* ── Tag badge ──────────────────────────────────────────────────── */
 .proxmox-tags-full .proxmox-tag-microvm,
 .proxmox-tags-dense .proxmox-tag-microvm {
-    background-color: #7c3aed !important;  /* purple-600 */
+    background-color: #7c3aed !important;
     color: white !important;
     font-weight: bold;
 }
 
-/*
- * Approach 2: Custom CSS class on the tree icon
- *
- * If pve-manager is patched to detect machine=microvm and add an extra CSS
- * class, we can override the icon entirely. The JS patch would add 'microvm'
- * to the icon element's classList.
- *
- * Usage: add `pve-microvm` class to the icon element in ResourceTree.js
- */
-
-/* Replace fa-desktop with fa-bolt (lightning) for microvm guests */
+/* ── Resource tree icon: fa-bolt for microvm guests ─────────────── */
 .x-tree-icon-custom.fa-desktop.pve-microvm:before,
 .x-grid-icon-custom.fa-desktop.pve-microvm:before {
     content: "\f0e7";  /* fa-bolt */
 }
 
-/* Alternative: use fa-rocket */
-/*
-.x-tree-icon-custom.fa-desktop.pve-microvm:before,
-.x-grid-icon-custom.fa-desktop.pve-microvm:before {
-    content: "\f135";
-}
-*/
-
-/* Alternative: use fa-microchip */
-/*
-.x-tree-icon-custom.fa-desktop.pve-microvm:before,
-.x-grid-icon-custom.fa-desktop.pve-microvm:before {
-    content: "\f2db";
-}
-*/
-
-/* Give microvm icons a distinctive color */
 .x-tree-icon-custom.fa-desktop.pve-microvm,
 .x-grid-icon-custom.fa-desktop.pve-microvm {
-    color: #7c3aed;  /* purple-600 — distinct from standard VM grey */
+    color: #7c3aed;
 }
 .x-tree-icon-custom.fa-desktop.pve-microvm.running,
 .x-grid-icon-custom.fa-desktop.pve-microvm.running {
-    color: #6d28d9;  /* purple-700 when running */
+    color: #6d28d9;
 }
 .x-tree-icon-custom.fa-desktop.pve-microvm.stopped,
 .x-grid-icon-custom.fa-desktop.pve-microvm.stopped {
-    color: #c4b5fd;  /* purple-300 when stopped */
+    color: #c4b5fd;
+}
+
+/* ── Disabled hardware items tooltip ────────────────────────────── */
+.pve-microvm-disabled {
+    opacity: 0.4;
+    pointer-events: none;
 }
