@@ -1,23 +1,26 @@
-# pve-microvm v0.1.19
+# pve-microvm v0.1.22
 
-All virtio devices confirmed working. Major milestone release.
+Networking fix, GUI features, documentation update.
 
-## Confirmed on z83ii (PVE 9.1.7, QEMU 10.1.2, 256 MB RAM)
+## Fixes
 
-- ✅ `eth0` — networking via virtio-net-pci
-- ✅ `/dev/vport1p1` — guest agent serial port
-- ✅ `/dev/ttyS0` — serial console with interactive shell
-- ✅ `/dev/vda` — root disk via virtio-blk-pci
-- ✅ Balloon device for memory reporting
-- ✅ Linked clones (instant LVM snapshot)
-- ✅ Disk resize
-- ✅ Snapshots
-- ✅ vzdump backup (stop-mode, 8s)
-- ✅ dpkg trigger for auto-repatching
+- **Networking**: `dhclient` fallback service for reliable DHCP on boot.
+  systemd-networkd on Trixie has config matching issues with microvm's
+  devtmpfs — the new `microvm-dhcp.service` runs `dhclient -4 eth0`
+  as a oneshot at boot.
+- **VM shutdown state**: documented `-no-shutdown` behavior and workaround.
 
-## Key architecture
+## GUI features
 
-- Kernel: 6.12.22 from native `x86_64_defconfig`
-- Transport: PCIe with non-transitional virtio devices
-- Boot: kernel + initrd (1.2 MB, loads virtio modules)
-- Init: busybox (static) or systemd from OCI image
+- **Conditional panel hiding**: BIOS, EFI, TPM, USB, PCI rows hidden
+  in create wizard and hardware view for microvm guests.
+- **One-click clone**: right-click microvm templates → "⚡ Clone microvm".
+- **Machine edit**: vIOMMU and version options hidden for microvm.
+- **Add hardware menu**: unsupported device types disabled.
+
+## Documentation
+
+- Updated all docs for v0.1.21 architecture (PCIe, initrd, vsock, virtiofs).
+- Added project icon to README.
+- Added blog post link.
+- Known issues fully documented with workarounds.

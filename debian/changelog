@@ -1,3 +1,14 @@
+pve-microvm (0.1.22-1) trixie; urgency=medium
+
+  * Fix: dhclient fallback service for reliable DHCP on boot.
+  * GUI: conditional panel hiding in wizard + hardware view.
+  * GUI: one-click clone from microvm templates.
+  * GUI: hide vIOMMU/version for microvm in machine edit.
+  * Docs: updated for PCIe/initrd/vsock/virtiofs architecture.
+  * Docs: project icon, blog post link, known issues.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sun, 20 Apr 2026 10:00:00 +0000
+
 pve-microvm (0.1.21-1) trixie; urgency=medium
 
   * vsock: host↔guest sockets (CID = VMID + 1000).
