@@ -1,3 +1,11 @@
+pve-microvm (0.1.23-1) trixie; urgency=medium
+
+  * Fix dir/ZFS/NFS storage support in template and OCI import tools.
+  * Parse importdisk output for correct volume ID (fixes issue #1 dir storage).
+  * Fix guest agent: mask stock service, use custom microvm-agent.service.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sun, 20 Apr 2026 22:00:00 +0000
+
 pve-microvm (0.1.22-1) trixie; urgency=medium
 
   * Fix: dhclient fallback service for reliable DHCP on boot.
