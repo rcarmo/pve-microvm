@@ -383,8 +383,10 @@ qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
 
 # Step 6: Import disk
 log "Importing disk to $STORAGE..."
-qm importdisk "$TEMPLATE_VMID" "$QCOW2" "$STORAGE" --format qcow2 >/dev/null 2>&1
-qm set "$TEMPLATE_VMID" --scsi0 "$STORAGE:vm-${TEMPLATE_VMID}-disk-0"
+IMPORT_OUTPUT=$(qm importdisk "$TEMPLATE_VMID" "$QCOW2" "$STORAGE" --format qcow2 2>&1)
+IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${TEMPLATE_VMID}-disk-0")
+log "Imported disk: $IMPORT_VOLID"
+qm set "$TEMPLATE_VMID" --scsi0 "$IMPORT_VOLID"
 
 # Step 7: Add cloud-init drive
 log "Adding cloud-init drive..."

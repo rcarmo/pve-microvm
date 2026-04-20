@@ -166,8 +166,14 @@ log "disk image created: ${DISK_SIZE_MB}MB (qcow2)"
 
 # Step 5: Import into PVE storage
 log "importing disk to PVE storage: $STORAGE (vmid=$VMID)"
-qm importdisk "$VMID" "$QCOW2_IMAGE" "$STORAGE" --format qcow2 2>/dev/null || \
+IMPORT_OUTPUT=$(qm importdisk "$VMID" "$QCOW2_IMAGE" "$STORAGE" --format qcow2 2>&1)
+if [ $? -ne 0 ]; then
+    echo "$IMPORT_OUTPUT" >&2
     die "failed to import disk — does VM $VMID exist? Try: qm create $VMID --machine microvm --memory 256"
+fi
+IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${VMID}-disk-0")
+log "imported: $IMPORT_VOLID"
+qm set "$VMID" --scsi0 "$IMPORT_VOLID" 2>/dev/null || true
 
 # Step 6: Optionally configure the VM
 if [ "$CONFIGURE" -eq 1 ]; then
