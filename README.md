@@ -140,6 +140,8 @@ qm terminal 900
 - [x] `onboot` / startup order
 - [x] Nested virtualization (KVM passthrough)
 - [x] Suppress SeaBIOS (qboot auto-selected)
+- [x] GUI: conditional panel hiding (wizard + hardware view)
+- [x] GUI: one-click clone from microvm templates
 - [x] systemd-networkd auto-enable
 - [x] Guest agent device path fix
 
@@ -149,9 +151,6 @@ qm terminal 900
 |---|---|---|---|
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
-| **GUI: conditional panel hiding** — hide unsupported tabs for microvm | Medium | Medium | Medium |
-| **GUI: kernel path field** — dedicated field instead of raw `args` | Medium | Medium | Medium |
-| **GUI: one-click clone** — "Create microvm" button from template | Medium | Medium | Medium |
 | **Migration** — test live migration | Medium | Medium | Medium |
 | **HA** — test with PVE HA manager | Medium | Medium | Medium |
 | **Ephemeral VMs** — run-and-destroy workflow | Medium | High | Medium |
