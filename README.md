@@ -12,6 +12,8 @@ A Debian package that adds QEMU `microvm` machine type support to Proxmox VE.
 > has not been tested in production. Use at your own risk. The patches are
 > fully reversible — uninstalling the package restores the original files.
 
+📝 [Blog post with some background](https://taoofmac.com/space/notes/2026/04/19/1400#proxmox-microvms)
+
 ---
 
 ## Motivation
