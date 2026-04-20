@@ -7,6 +7,7 @@
 </p>
 
 A Debian package that adds QEMU `microvm` machine type support to Proxmox VE.
+[Blog post with some background](https://taoofmac.com/space/notes/2026/04/19/1400#proxmox-microvms).
 
 > **⚠️ Highly experimental.** This project patches `qemu-server` internals and
 > has not been tested in production. Use at your own risk. The patches are
