@@ -1,6 +1,10 @@
 # pve-microvm
 
 <p align="center">
+  <img src="docs/icon-256.png" alt="pve-microvm" width="128">
+</p>
+
+<p align="center">
   <img src="docs/pve-microvm-demo.gif" alt="pve-microvm in the Proxmox web UI" width="720">
 </p>
 
