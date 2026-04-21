@@ -147,6 +147,7 @@ qm terminal 900
 - [x] Nested virtualization (KVM passthrough)
 - [x] Suppress SeaBIOS (qboot auto-selected)
 - [x] Alpine template support (apk-based chroot)
+- [x] Plan 9 / 9Front template support (pre-built qcow2 from 9front.org)
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates
@@ -168,7 +169,6 @@ qm terminal 900
 | **Upstream proposal** — RFC for Proxmox pve-devel | Low | High | High |
 | **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
 | **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |
-| **Plan 9 / 9Front microVM** — alternative guest OS | Low | Low | High |
 | **AArch64 guest support** — ARM64 PVE hosts | Low | Medium | High |
 
 ---

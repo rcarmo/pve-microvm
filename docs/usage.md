@@ -221,3 +221,23 @@ pve-microvm-bench
 
 Outputs: boot time to serial socket, boot time to shell prompt,
 host memory usage, QEMU RSS, kernel/initrd sizes.
+
+## 9Front / Plan 9 templates
+
+Boot Plan 9 (9Front) as a microvm guest:
+
+```bash
+pve-microvm-template --image 9front --vmid 9002 --name microvm-9front
+qm clone 9002 950 --name my-9front --full
+qm start 950
+qm terminal 950
+```
+
+Note: 9Front uses q35 machine type (boots from disk via BIOS, not `-kernel`).
+At the boot prompt, serial console is enabled automatically.
+
+9Front provides:
+- ~3 MB kernel, sub-second boot
+- Native 9P file sharing
+- Different security model (per-process namespaces)
+- `rc` shell, `mk` build tool, `sam`/`acme` editors
