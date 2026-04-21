@@ -167,6 +167,62 @@ mkdir -p "$CACHE_DIR"
 WORKDIR=$(mktemp -d "$CACHE_DIR/build.XXXXXX")
 trap 'rm -rf "$WORKDIR"' EXIT
 
+# ── 9Front special case: download pre-built qcow2 directly ──────
+if echo "$IMAGE" | grep -qi '^9front'; then
+    log "9Front image detected — downloading pre-built qcow2"
+    NFRONT_URL="https://9front.org/iso/9front-11554.amd64.qcow2.gz"
+    NFRONT_GZ="$WORKDIR/9front.qcow2.gz"
+    NFRONT_QCOW2="$WORKDIR/9front.qcow2"
+
+    log "Downloading from $NFRONT_URL (239 MB compressed)..."
+    curl -L --progress-bar "$NFRONT_URL" -o "$NFRONT_GZ" || die "download failed"
+
+    log "Decompressing..."
+    gunzip "$NFRONT_GZ"
+    ls -lh "$NFRONT_QCOW2"
+
+    # Create the VM — 9front boots from disk via BIOS, not -kernel
+    # Use q35 machine type (not microvm) since 9front needs BIOS boot
+    log "Creating 9Front template VM $TEMPLATE_VMID..."
+    qm create "$TEMPLATE_VMID" \
+        --machine q35 \
+        --name "$TEMPLATE_NAME" \
+        --memory "$MEMORY" \
+        --cores "$CORES" \
+        --net0 "virtio,bridge=$BRIDGE" \
+        --serial0 socket \
+        --vga serial0 \
+        --tags "$TAGS,9front"
+    qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
+
+    # Import the qcow2
+    log "Importing disk to $STORAGE..."
+    IMPORT_OUTPUT=$(qm importdisk "$TEMPLATE_VMID" "$NFRONT_QCOW2" "$STORAGE" --format qcow2 2>&1)
+    IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${TEMPLATE_VMID}-disk-0")
+    log "Imported: $IMPORT_VOLID"
+    qm set "$TEMPLATE_VMID" --scsi0 "$IMPORT_VOLID" --boot order=scsi0
+
+    # 9front serial console: append console=0 to plan9.ini
+    # (handled by the 9front boot loader when serial is available)
+
+    # Convert to template
+    log "Converting to template..."
+    qm template "$TEMPLATE_VMID"
+
+    log ""
+    log "=== 9Front template ready ==="
+    log ""
+    log "Clone:"
+    log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-9front --full"
+    log "  qm start <new-vmid>"
+    log "  qm terminal <new-vmid>"
+    log ""
+    log "Note: 9Front boots from disk (no -kernel needed)."
+    log "Serial console: at the boot prompt, type: console=0"
+    log "Or edit plan9.ini inside the guest to add: console=0"
+    exit 0
+fi
+
 OCI_DIR="$WORKDIR/oci"
 BUNDLE_DIR="$WORKDIR/bundle"
 ROOTFS_DIR="$BUNDLE_DIR/rootfs"
