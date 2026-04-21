@@ -93,7 +93,7 @@ The shipped kernel (6.12.22, built from `x86_64_defconfig`) has virtio drivers c
 
 ### Why PCIe instead of virtio-mmio?
 
-QEMU 10.x's microvm mmio transport has a device probing issue where only `virtio-blk` binds — network, serial, and balloon devices don't get claimed by their drivers. PCIe with non-transitional devices works reliably for all device types. The boot time penalty is negligible (~50ms).
+QEMU 10.x's microvm mmio transport has a device probing issue where only `virtio-blk` binds — network, serial, and balloon devices don't get claimed by their drivers. PCIe with non-transitional devices works reliably for all device types, and paves the way for future GPU support. The boot time penalty is negligible (~50ms).
 
 ### How much RAM does a microvm need?
 
@@ -109,17 +109,17 @@ Microvm has no VGA hardware. The console is serial-only (ttyS0), accessible via 
 
 ### Why does the guest agent take so long to start?
 
-On slow hardware (e.g., Intel Atom), systemd + cloud-init can take 60–120 seconds to fully initialize. The guest agent service retries automatically (`Restart=always, RestartSec=5`). On faster hardware, the agent is typically ready in 10–30 seconds.
+On slow hardware (e.g., Intel Atom), systemd + cloud-init can take 60–120 seconds to fully initialize. The guest agent service retries automatically (`Restart=always, RestartSec=5`). On faster hardware, the agent is typically ready in 10–30 seconds, but realistically most microVM workloads don't need the agent--we just added it because it provides better observability, and the trade-off is acceptable in the long run.
 
 ## Guest capabilities
 
 ### Can I run Docker inside a microvm?
 
-Yes. The template's first-boot setup installs Docker CE. The kernel supports nested namespaces and cgroups. KVM passthrough (`-cpu host`) means Docker works at native speed.
+Yes. The template's current first-boot setup actually installs Docker CE because that is a key part of our workflow, but there will be an option to disable that by default. The kernel supports nested namespaces and cgroups. KVM passthrough (`-cpu host`) means Docker works at native speed.
 
 ### Can I SSH into a microvm?
 
-Yes. The template installs OpenSSH server and cloud-init configures it. Set your SSH key via `qm set <vmid> --sshkeys ~/.ssh/authorized_keys` before first boot.
+Yes. The current template installs OpenSSH server by detault and `cloud-init` configures it. Set your SSH key via `qm set <vmid> --sshkeys ~/.ssh/authorized_keys` before first boot.
 
 ### How do I share files between host and guest?
 
@@ -152,13 +152,13 @@ Yes — experimentally. 9Front (Plan 9) is supported as a template:
 pve-microvm-template --image 9front --vmid 9002
 ```
 
-This is a proof-of-concept for running non-Linux microvms, and a stepping stone toward specialist microkernels used in telco (PikeOS, QNX), real-time systems (Zephyr, seL4), and unikernel frameworks (Unikraft).
+This is a proof-of-concept for running non-Linux microvms, and a stepping stone toward specialist microkernels used in telco (PikeOS, QNX), real-time systems (Zephyr, seL4), and unikernel frameworks (Unikraft). Because I'm weird that way.
 
 ## Future plans
 
 ### Will this work on ARM64 / Raspberry Pi?
 
-Not yet. The current implementation is x86_64 only. ARM64 support would need a different QEMU machine type (`virt` instead of `microvm`), a different kernel config, and testing on ARM64 PVE hosts. It's on the roadmap as a low-priority exploratory item.
+Not yet. The current implementation is x86_64 only. ARM64 support would need a different QEMU machine type (`virt` instead of `microvm`), a different kernel config, and testing on ARM64 PVE hosts. It's on the roadmap as a low-priority exploratory item, but since we run PVE on ARM64 already, it might get done sooner than later.
 
 ### Can I migrate microvms between nodes?
 

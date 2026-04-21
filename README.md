@@ -12,7 +12,7 @@ A Debian package that adds QEMU `microvm` machine type support to Proxmox VE.
 > has not been tested in production. Use at your own risk. The patches are
 > fully reversible — uninstalling the package restores the original files.
 
-📝 [Blog post with some background](https://taoofmac.com/space/notes/2026/04/19/1400#proxmox-microvms)
+📝 [Blog post with some background](https://taoofmac.com/space/notes/2026/04/19/1400#proxmox-microvms) · ❓ [FAQ](docs/faq.md)
 
 ---
 
@@ -158,6 +158,10 @@ qm terminal 900
 
 | Feature | Priority | Impact | Effort |
 |---|---|---|---|
+| **Template profiles** — minimal/standard/full profiles controlling what gets installed | Medium | High | Low |
+| **`--no-docker`** — skip Docker CE install in template (faster, smaller) | Medium | Medium | Low |
+| **`--no-ssh`** — skip OpenSSH install for isolated/air-gapped microvms | Medium | Medium | Low |
+| **`--no-agent`** — skip guest agent for headless/ephemeral workloads | Medium | Medium | Low |
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
 | **Migration** — test live migration | Medium | Medium | Medium |
