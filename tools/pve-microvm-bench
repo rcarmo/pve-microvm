@@ -1,0 +1,127 @@
+#!/bin/bash
+# pve-microvm-bench — measure microvm boot time and resource overhead
+#
+# Usage:
+#   pve-microvm-bench [--vmid 999] [--storage local-lvm]
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+VMID="${1:-999}"
+STORAGE="${2:-local-lvm}"
+
+log() { echo "[$PROG] $*"; }
+
+# Clean up
+cleanup() {
+    qm stop "$VMID" >/dev/null 2>&1 || true
+    sleep 2
+    qm destroy "$VMID" --purge >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+log "=== pve-microvm benchmark ==="
+log "VMID: $VMID, Storage: $STORAGE"
+echo ""
+
+# Create a minimal VM
+qm destroy "$VMID" --purge >/dev/null 2>&1 || true
+qm create "$VMID" --machine microvm --memory 256 --cores 1 \
+  --name bench-microvm --serial0 socket --vga serial0 --agent 1 --tags microvm >/dev/null 2>&1
+qm set "$VMID" --delete vmgenid --delete smbios1 >/dev/null 2>&1 || true
+
+# Create minimal rootfs
+WORK=$(mktemp -d)
+ROOTFS="$WORK/rootfs"
+mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev}
+if [ -f /usr/bin/busybox-static ]; then
+    cp /usr/bin/busybox-static "$ROOTFS/bin/busybox"
+else
+    cp "$(which busybox)" "$ROOTFS/bin/busybox"
+fi
+chmod 755 "$ROOTFS/bin/busybox"
+for cmd in sh ls cat mount mkdir hostname ip uname sleep; do
+    ln -sf busybox "$ROOTFS/bin/$cmd"
+done
+ln -sf ../bin/busybox "$ROOTFS/sbin/init"
+
+cat > "$ROOTFS/etc/inittab" <<'INITTAB'
+::sysinit:/bin/mount -t proc proc /proc
+::sysinit:/bin/mount -t sysfs sys /sys
+::sysinit:/bin/mount -t devtmpfs devtmpfs /dev
+::sysinit:/bin/hostname microvm
+ttyS0::respawn:/bin/sh
+INITTAB
+
+RAW="$WORK/disk.raw"
+truncate -s 64M "$RAW"
+mkfs.ext4 -F -d "$ROOTFS" "$RAW" >/dev/null 2>&1
+
+IMPORT_OUTPUT=$(qm importdisk "$VMID" "$RAW" "$STORAGE" 2>&1)
+IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${VMID}-disk-0")
+qm set "$VMID" --scsi0 "$IMPORT_VOLID" >/dev/null 2>&1
+qm set "$VMID" --args "-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append \"console=ttyS0 root=/dev/vda rw quiet\"" >/dev/null 2>&1
+
+rm -rf "$WORK"
+
+# Benchmark: boot time
+log "Measuring boot time..."
+T_START=$(date +%s%N)
+qm start "$VMID" >/dev/null 2>&1
+
+# Wait for serial socket
+for i in $(seq 1 60); do
+    [ -S "/var/run/qemu-server/${VMID}.serial0" ] && break
+    sleep 0.1
+done
+
+# Wait for shell prompt
+BOOTED=0
+T_SERIAL=$(date +%s%N)
+for i in $(seq 1 100); do
+    REPLY=$(echo "" | timeout 1 socat - "UNIX-CONNECT:/var/run/qemu-server/${VMID}.serial0" 2>/dev/null || true)
+    if echo "$REPLY" | grep -q "microvm\|#\|\\$"; then
+        BOOTED=1
+        break
+    fi
+    sleep 0.1
+done
+T_END=$(date +%s%N)
+
+BOOT_MS=$(( (T_END - T_START) / 1000000 ))
+SERIAL_MS=$(( (T_SERIAL - T_START) / 1000000 ))
+
+echo ""
+echo "=== Results ==="
+echo "QEMU start → serial socket: ${SERIAL_MS} ms"
+if [ "$BOOTED" -eq 1 ]; then
+    echo "QEMU start → shell prompt:  ${BOOT_MS} ms"
+else
+    echo "QEMU start → shell prompt:  timeout (>10s)"
+fi
+
+# Memory
+MEM_INFO=$(qm status "$VMID" --verbose 2>/dev/null)
+MEM_HOST=$(echo "$MEM_INFO" | grep '^memhost:' | awk '{print $2}')
+MEM_GUEST=$(echo "$MEM_INFO" | grep '^mem:' | awk '{print $2}')
+MEM_MAX=$(echo "$MEM_INFO" | grep '^maxmem:' | awk '{print $2}')
+
+if [ -n "$MEM_HOST" ]; then
+    echo "Host memory usage:          $(( MEM_HOST / 1024 / 1024 )) MB"
+fi
+if [ -n "$MEM_GUEST" ]; then
+    echo "Guest memory used:          $(( MEM_GUEST / 1024 / 1024 )) MB / $(( MEM_MAX / 1024 / 1024 )) MB"
+fi
+
+# Disk
+QEMU_PID=$(cat "/var/run/qemu-server/${VMID}.pid" 2>/dev/null)
+if [ -n "$QEMU_PID" ]; then
+    QEMU_RSS=$(ps -o rss= -p "$QEMU_PID" 2>/dev/null | tr -d ' ')
+    if [ -n "$QEMU_RSS" ]; then
+        echo "QEMU process RSS:           $(( QEMU_RSS / 1024 )) MB"
+    fi
+fi
+
+echo ""
+echo "Kernel: $(ls -lh /usr/share/pve-microvm/vmlinuz 2>/dev/null | awk '{print $5}')"
+echo "Initrd: $(ls -lh /usr/share/pve-microvm/initrd 2>/dev/null | awk '{print $5}')"

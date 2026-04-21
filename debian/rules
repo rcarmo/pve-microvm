@@ -20,6 +20,8 @@ override_dh_auto_install:
 	install -m 755 tools/pve-microvm-template $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-share $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-ssh-agent $(CURDIR)/debian/pve-microvm/usr/bin/
+	install -m 755 tools/pve-microvm-run $(CURDIR)/debian/pve-microvm/usr/bin/
+	install -m 755 tools/pve-microvm-bench $(CURDIR)/debian/pve-microvm/usr/bin/
 
 	# Install microvm defaults and image config
 	install -d $(CURDIR)/debian/pve-microvm/usr/share/pve-microvm

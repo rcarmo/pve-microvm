@@ -177,3 +177,47 @@ When a VM uses `machine: microvm`:
 - **Console button**: opens xterm.js serial terminal (via `vga: serial0`)
 - **Resource tree**: microvm-tagged VMs show a ⚡ bolt icon in purple
 - **Template context menu**: right-click → "⚡ Clone microvm" for one-click cloning
+
+## Ephemeral VMs
+
+Run a command in a disposable microvm that's destroyed after exit:
+
+```bash
+# Run a command
+pve-microvm-run -- uname -a
+
+# Interactive shell
+pve-microvm-run -it --image alpine:latest
+
+# Without network (sandbox)
+pve-microvm-run --no-net -- echo "isolated"
+
+# Custom resources
+pve-microvm-run --memory 512 --cores 2 -- make -j2
+```
+
+The VM is cloned from a template, started, command executed via the
+guest agent, then destroyed automatically.
+
+## Alpine templates
+
+Alpine Linux works out of the box:
+
+```bash
+pve-microvm-template --image alpine:latest --vmid 9001 --name microvm-alpine
+```
+
+Alpine templates use busybox init + inittab (no systemd). The chroot
+step installs `openssh`, `qemu-guest-agent`, `dhclient`, and `socat`
+via `apk`.
+
+## Benchmarking
+
+Measure boot time and resource overhead:
+
+```bash
+pve-microvm-bench
+```
+
+Outputs: boot time to serial socket, boot time to shell prompt,
+host memory usage, QEMU RSS, kernel/initrd sizes.

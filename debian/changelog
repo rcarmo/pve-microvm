@@ -1,3 +1,13 @@
+pve-microvm (0.1.24-1) trixie; urgency=medium
+
+  * New: pve-microvm-run for ephemeral VMs (run-and-destroy workflow).
+  * New: pve-microvm-bench for boot time and resource benchmarking.
+  * New: Alpine template support (apk-based chroot install).
+  * Fix: dir/ZFS/NFS storage support in template and OCI import.
+  * Fix: guest agent uses custom microvm-agent.service.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Mon, 21 Apr 2026 07:30:00 +0000
+
 pve-microvm (0.1.23-1) trixie; urgency=medium
 
   * Fix dir/ZFS/NFS storage support in template and OCI import tools.

@@ -82,6 +82,8 @@ qm terminal 900
 | **`pve-oci-import`** | Convert any OCI image to a bootable microvm disk |
 | **`pve-microvm-share`** | Share host directories into guest via virtiofs |
 | **`pve-microvm-ssh-agent`** | Forward host SSH agent into guest via vsock |
+| **`pve-microvm-run`** | Run commands in ephemeral microvms (auto-cleanup) |
+| **`pve-microvm-bench`** | Measure boot time and resource overhead |
 | **`microvm-init`** | Minimal init for images without one (e.g., `debian:trixie-slim`) |
 | **`vmlinuz-microvm`** | Pre-built 6.12.22 kernel with PCIe virtio + vsock + virtiofs |
 | **Web UI extension** | `microvm` in machine dropdown, ⚡ icon, xterm.js serial console |
@@ -144,6 +146,8 @@ qm terminal 900
 - [x] `onboot` / startup order
 - [x] Nested virtualization (KVM passthrough)
 - [x] Suppress SeaBIOS (qboot auto-selected)
+- [x] Alpine template support (apk-based chroot)
+- [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates
 - [x] systemd-networkd auto-enable
@@ -157,13 +161,10 @@ qm terminal 900
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
 | **Migration** — test live migration | Medium | Medium | Medium |
 | **HA** — test with PVE HA manager | Medium | Medium | Medium |
-| **Ephemeral VMs** — run-and-destroy workflow | Medium | High | Medium |
-| **Pre-baked images** — ship ready-to-boot qcow2 templates | Medium | Medium | Medium |
 | **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |
 | **Custom icon persistence** — ⚡ across browsers | Low | Low | Low |
-| **Performance benchmarking** — boot time, overhead, throughput | Low | Medium | Medium |
 | **Upstream proposal** — RFC for Proxmox pve-devel | Low | High | High |
 | **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
 | **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |

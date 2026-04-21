@@ -346,8 +346,36 @@ CICFG
     umount "$ROOTFS_DIR/proc" 2>/dev/null || true
 
     log "Base packages installed."
+elif [ -f "$ROOTFS_DIR/sbin/apk" ] || [ -f "$ROOTFS_DIR/usr/bin/apk" ]; then
+    log "Installing base packages via chroot (Alpine)..."
+
+    mount --bind /proc "$ROOTFS_DIR/proc" 2>/dev/null || true
+    mount --bind /sys "$ROOTFS_DIR/sys" 2>/dev/null || true
+    mount --bind /dev "$ROOTFS_DIR/dev" 2>/dev/null || true
+
+    chroot "$ROOTFS_DIR" /bin/sh -c '
+        # Alpine: install essentials via apk
+        apk update 2>/dev/null
+        apk add --no-cache \
+            openssh qemu-guest-agent dhclient socat cloud-init 2>/dev/null || true
+
+        # Enable services via OpenRC
+        if command -v rc-update >/dev/null 2>&1; then
+            rc-update add sshd default 2>/dev/null || true
+            rc-update add qemu-guest-agent default 2>/dev/null || true
+        fi
+
+        # Set empty root password
+        sed -i "s|^root:[^:]*:|root::|" /etc/shadow 2>/dev/null || true
+    ' 2>&1 || log "warning: chroot package install had errors"
+
+    umount "$ROOTFS_DIR/dev" 2>/dev/null || true
+    umount "$ROOTFS_DIR/sys" 2>/dev/null || true
+    umount "$ROOTFS_DIR/proc" 2>/dev/null || true
+
+    log "Alpine packages installed."
 else
-    log "No apt-get found — skipping chroot package install"
+    log "No apt-get or apk found — skipping chroot package install"
 fi
 
 # Step 4: Create disk image

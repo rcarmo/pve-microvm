@@ -1,0 +1,149 @@
+#!/bin/bash
+# pve-microvm-run — run a command in an ephemeral microvm (cleaned up after exit)
+#
+# Usage:
+#   pve-microvm-run --image alpine:latest -- echo "hello from microvm"
+#   pve-microvm-run --image debian:trixie-slim --memory 512 -- bash -c "apt install -y curl && curl example.com"
+#   pve-microvm-run --net --image alpine:latest -- sh -c "ip addr && wget -qO- example.com"
+#   pve-microvm-run --image alpine:latest -it   # interactive shell
+#
+# The VM is created, started, command executed via guest agent, then destroyed.
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+IMAGE="debian:trixie-slim"
+MEMORY=256
+CORES=1
+STORAGE="local-lvm"
+NET=1
+INTERACTIVE=0
+TEMPLATE_VMID=9000
+CMD=""
+
+usage() {
+    cat <<EOF
+Usage: $PROG [OPTIONS] [-- COMMAND...]
+
+Run a command in an ephemeral microvm. The VM is destroyed after the command exits.
+
+Options:
+  --image IMAGE       OCI image (default: $IMAGE)
+  --memory MB         Memory in MiB (default: $MEMORY)
+  --cores N           CPU cores (default: $CORES)
+  --storage STORE     PVE storage (default: $STORAGE)
+  --no-net            Boot without network
+  --template VMID     Use existing template (default: $TEMPLATE_VMID)
+  -it                 Interactive mode (attach serial console)
+  --help              Show this help
+
+Examples:
+  $PROG -- uname -a
+  $PROG --image alpine:latest -- sh -c "apk add curl && curl example.com"
+  $PROG -it --image alpine:latest
+  $PROG --no-net -- echo "isolated sandbox"
+EOF
+    exit "${1:-0}"
+}
+
+# Parse args
+DASH_DASH=0
+CMD_ARGS=()
+while [[ $# -gt 0 ]]; do
+    if [ "$DASH_DASH" -eq 1 ]; then
+        CMD_ARGS+=("$1"); shift; continue
+    fi
+    case "$1" in
+        --image)      IMAGE="$2"; shift 2 ;;
+        --memory)     MEMORY="$2"; shift 2 ;;
+        --cores)      CORES="$2"; shift 2 ;;
+        --storage)    STORAGE="$2"; shift 2 ;;
+        --no-net)     NET=0; shift ;;
+        --template)   TEMPLATE_VMID="$2"; shift 2 ;;
+        -it|--interactive) INTERACTIVE=1; shift ;;
+        --help|-h)    usage 0 ;;
+        --)           DASH_DASH=1; shift ;;
+        *)            CMD_ARGS+=("$1"); shift ;;
+    esac
+done
+
+log() { echo "[$PROG] $*" >&2; }
+
+# Find a free VMID
+VMID=$(pvesh get /cluster/nextid 2>/dev/null || echo 9999)
+
+# Check if template exists
+if ! qm config "$TEMPLATE_VMID" >/dev/null 2>&1; then
+    log "No template at VMID $TEMPLATE_VMID. Creating one..."
+    pve-microvm-template --vmid "$TEMPLATE_VMID" --image "$IMAGE" --storage "$STORAGE" --disk-size 2G
+fi
+
+# Clone from template
+log "Cloning template $TEMPLATE_VMID → $VMID"
+qm clone "$TEMPLATE_VMID" "$VMID" --name "microvm-ephemeral-$$" --full >/dev/null 2>&1
+
+# Configure
+qm set "$VMID" --memory "$MEMORY" --cores "$CORES" --tags "microvm,ephemeral" >/dev/null 2>&1
+qm set "$VMID" --ciuser root --ipconfig0 ip=dhcp >/dev/null 2>&1
+
+if [ "$NET" -eq 0 ]; then
+    qm set "$VMID" --delete net0 >/dev/null 2>&1
+fi
+
+# Cleanup on exit
+cleanup() {
+    log "Destroying ephemeral VM $VMID"
+    qm stop "$VMID" >/dev/null 2>&1 || true
+    sleep 2
+    qm destroy "$VMID" --purge >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+# Start
+log "Starting VM $VMID ($MEMORY MB, $CORES cores)"
+qm start "$VMID" >/dev/null 2>&1
+
+# Wait for agent
+log "Waiting for guest agent..."
+for i in $(seq 1 60); do
+    if qm agent "$VMID" ping >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
+
+if ! qm agent "$VMID" ping >/dev/null 2>&1; then
+    log "WARNING: Guest agent not responding after 120s"
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        log "Falling back to serial console"
+        qm terminal "$VMID"
+        exit 0
+    fi
+    exit 1
+fi
+
+# Interactive mode: attach console
+if [ "$INTERACTIVE" -eq 1 ]; then
+    log "Attaching serial console (Ctrl-O to exit)"
+    qm terminal "$VMID"
+    exit 0
+fi
+
+# Execute command
+if [ ${#CMD_ARGS[@]} -eq 0 ]; then
+    CMD_ARGS=("echo" "microvm ready")
+fi
+
+log "Executing: ${CMD_ARGS[*]}"
+qm guest exec "$VMID" -- "${CMD_ARGS[@]}" 2>&1 | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    out = d.get('out-data', '')
+    err = d.get('err-data', '')
+    if out: sys.stdout.write(out)
+    if err: sys.stderr.write(err)
+    sys.exit(d.get('exitcode', 0))
+except:
+    sys.stdout.write(sys.stdin.read())
+"
