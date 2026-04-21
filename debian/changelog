@@ -1,3 +1,17 @@
+pve-microvm (0.2.0-1) trixie; urgency=medium
+
+  * Minor version bump: 34 roadmap items shipped.
+  * New: pve-microvm-run for ephemeral VMs.
+  * New: pve-microvm-bench for performance benchmarking.
+  * New: Alpine template support (apk chroot).
+  * New: 9Front / Plan 9 template support.
+  * Fix: dir/ZFS/NFS storage path resolution.
+  * Fix: guest agent reliable startup.
+  * Fix: DHCP fallback service.
+  * GUI: conditional panel hiding, one-click clone.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Mon, 21 Apr 2026 08:00:00 +0000
+
 pve-microvm (0.1.24-1) trixie; urgency=medium
 
   * New: pve-microvm-run for ephemeral VMs (run-and-destroy workflow).

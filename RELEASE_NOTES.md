@@ -1,33 +1,41 @@
-# pve-microvm v0.1.23
+# pve-microvm v0.2.0
 
-Storage compatibility fix + guest agent reliability.
+Major milestone: 34 roadmap items shipped, all core features working end-to-end.
 
-## Fixes
+## Highlights
 
-- **Dir/ZFS/NFS storage**: template and OCI import tools now correctly
-  parse `qm importdisk` output for volume IDs. Previously hardcoded
-  LVM naming (`storage:vm-VMID-disk-0`) which doesn't work for dir-type
-  storage (`storage:VMID/vm-VMID-disk-0.qcow2`).
-- **Guest agent**: mask broken stock `qemu-guest-agent.service` (can't
-  clear `BindsTo=` via drop-in on Trixie), use custom `microvm-agent.service`
-  with `Restart=always`.
-- **DHCP**: `microvm-dhcp.service` uses `dhclient` as fallback for reliable
-  networking (systemd-networkd has config matching issues with microvm devtmpfs).
+- **Full end-to-end** on z83ii (Intel Atom, 2GB RAM, PVE 9.1.7, QEMU 10.1.2)
+- **Ephemeral VMs** — `pve-microvm-run -- uname -a` (auto-cleanup)
+- **9Front / Plan 9** — boots from pre-built qcow2, sub-3s on Atom
+- **Alpine templates** — apk-based chroot with full package support
+- **All storage types** — LVM, LVM-thin, ZFS, dir, NFS/CIFS
+- **virtiofs + vsock** — host directory sharing and SSH agent forwarding
+- **GUI** — panel hiding, one-click clone, ⚡ icon
+- **Reliable networking** — dhclient fallback for Trixie's networkd issues
+- **Guest agent** — custom service with retry, works on all images
 
-## Storage types now supported
+## Tools shipped
 
-| Storage | Volume format | Status |
-|---|---|---|
-| LVM / LVM-thin | `local-lvm:vm-900-disk-0` | ✅ |
-| Dir (local) | `local:900/vm-900-disk-0.qcow2` | ✅ (fixed) |
-| ZFS pool | `local-zfs:vm-900-disk-0` | ✅ |
-| NFS/CIFS | `nfs:900/vm-900-disk-0.qcow2` | ✅ |
+| Tool | Purpose |
+|---|---|
+| `pve-microvm-template` | Create templates from OCI images or 9Front |
+| `pve-oci-import` | Import any OCI image as a microvm disk |
+| `pve-microvm-run` | Ephemeral VMs (run-and-destroy) |
+| `pve-microvm-share` | Share host directories via virtiofs |
+| `pve-microvm-ssh-agent` | Forward SSH agent via vsock |
+| `pve-microvm-bench` | Boot time and resource benchmarking |
+| `pve-microvm-patch` | Safe apply/revert of qemu-server patches |
+
+## Supported guest images
+
+- `debian:trixie-slim` (default, 28 MB)
+- `alpine:latest` (5 MB, static busybox)
+- `9front` (Plan 9 / 9Front, 511 MB qcow2)
+- Any OCI image from Docker Hub, ghcr.io, quay.io
 
 ## Upgrade
 
 ```bash
-curl -sL https://github.com/rcarmo/pve-microvm/releases/download/v0.1.23/pve-microvm_0.1.23-1_all.deb -o /tmp/pve-microvm.deb
+curl -sL https://github.com/rcarmo/pve-microvm/releases/download/v0.2.0/pve-microvm_0.2.0-1_all.deb -o /tmp/pve-microvm.deb
 dpkg -i /tmp/pve-microvm.deb
 ```
-
-Rebuild templates after upgrading to get the new DHCP + agent services.
