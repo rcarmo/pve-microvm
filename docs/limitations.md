@@ -58,3 +58,18 @@ The Firecracker 6.1 base kernel config may silently lose drivers when
 built on newer kernel versions (e.g., 6.12). The PVE overlay forces
 critical drivers (`virtio_net`, `virtio_balloon`, `virtio_console`) to
 `=y`. Always verify the final `.config` after `make olddefconfig`.
+
+## 9Front / Plan 9 (experimental)
+
+9Front template support is experimental and intended as a quick way to test
+non-Linux microvms. It demonstrates the platform's ability to host alternative
+operating systems before tackling specialist microkernels such as:
+
+- **PikeOS** / **QNX** — safety-certified RTOS for telco and automotive
+- **seL4** — formally verified microkernel
+- **Zephyr** — real-time OS for embedded and edge
+- **Unikraft** — unikernel framework for single-application VMs
+
+9Front uses q35 (not microvm machine type) since Plan 9 boots from disk
+via BIOS. The serial console requires typing `console=0` at the boot prompt
+or editing `plan9.ini` inside the guest.

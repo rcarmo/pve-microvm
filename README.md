@@ -147,7 +147,7 @@ qm terminal 900
 - [x] Nested virtualization (KVM passthrough)
 - [x] Suppress SeaBIOS (qboot auto-selected)
 - [x] Alpine template support (apk-based chroot)
-- [x] Plan 9 / 9Front template support (pre-built qcow2 from 9front.org)
+- [x] Plan 9 / 9Front template (experimental — non-Linux microvm proof-of-concept)
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates

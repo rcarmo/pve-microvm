@@ -241,3 +241,9 @@ At the boot prompt, serial console is enabled automatically.
 - Native 9P file sharing
 - Different security model (per-process namespaces)
 - `rc` shell, `mk` build tool, `sam`/`acme` editors
+
+> **⚠️ Experimental.** 9Front support is a proof-of-concept for running
+> non-Linux guests as microvms. It demonstrates that pve-microvm can host
+> alternative operating systems beyond Linux — a stepping stone toward
+> supporting specialist microkernels used in telco (e.g., PikeOS, QNX),
+> real-time systems (e.g., Zephyr, seL4), and research OS platforms.
