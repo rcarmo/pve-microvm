@@ -103,9 +103,12 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl enable qemu-guest-agent 2>/dev/null || true
 fi
 
-# Install Docker CE
-log "Installing Docker..."
-apt-get install -y -qq ca-certificates curl 2>/dev/null || true
+# Install Docker CE (skip if /etc/microvm-no-docker exists)
+if [ -f /etc/microvm-no-docker ]; then
+    log "Skipping Docker (disabled by profile)"
+else
+    log "Installing Docker..."
+    apt-get install -y -qq ca-certificates curl 2>/dev/null || true
 
 # Add Docker's GPG key and repo
 install -m 0755 -d /etc/apt/keyrings
@@ -122,6 +125,7 @@ if [ -f /etc/apt/keyrings/docker.asc ]; then
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || \
         log "warning: Docker install failed"
 fi
+fi  # end Docker block
 
 # Configure serial console getty
 log "Configuring serial console..."

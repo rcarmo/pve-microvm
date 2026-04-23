@@ -30,6 +30,10 @@ MEMORY="256"
 CORES="1"
 BRIDGE="vmbr0"
 TAGS="microvm,template"
+INSTALL_DOCKER=1
+INSTALL_SSH=1
+INSTALL_AGENT=1
+PROFILE=""
 # Auto-detect kernel + initrd
 if [ -f "/usr/share/pve-microvm/vmlinuz" ]; then
     KERNEL="/usr/share/pve-microvm/vmlinuz"
@@ -59,9 +63,18 @@ Options:
   --name NAME        Template name (default: $TEMPLATE_NAME)
   --storage STORE    PVE storage (default: $STORAGE)
   --disk-size SIZE   Disk size (default: $DISK_SIZE)
+  --profile PROFILE  minimal|standard|full (see below)
+  --no-docker        Skip Docker CE installation
+  --no-ssh           Skip OpenSSH server installation
+  --no-agent         Skip QEMU guest agent installation
   --list             List existing microvm templates
   --refresh          Re-fetch image even if template exists
   --help             Show this help
+
+Profiles:
+  minimal   — busybox init, no packages, no network services (fastest boot)
+  standard  — systemd, cloud-init, DHCP, SSH, guest agent (default)
+  full      — standard + Docker CE
 
 After creation:
   qm clone $TEMPLATE_VMID <new-vmid> --name my-sandbox
@@ -121,12 +134,33 @@ while [[ $# -gt 0 ]]; do
         --name)      TEMPLATE_NAME="$2"; shift 2 ;;
         --storage)   STORAGE="$2"; shift 2 ;;
         --disk-size) DISK_SIZE="$2"; shift 2 ;;
+        --profile)   PROFILE="$2"; shift 2 ;;
+        --no-docker) INSTALL_DOCKER=0; shift ;;
+        --no-ssh)    INSTALL_SSH=0; shift ;;
+        --no-agent)  INSTALL_AGENT=0; shift ;;
         --list)      ACTION="list"; shift ;;
         --refresh)   REFRESH=1; shift ;;
         --help|-h)   usage 0 ;;
         *)           die "unknown argument: $1" ;;
     esac
 done
+
+# Apply profile presets
+case "$PROFILE" in
+    minimal)
+        INSTALL_DOCKER=0; INSTALL_SSH=0; INSTALL_AGENT=0
+        log "Profile: minimal (no docker, no ssh, no agent)"
+        ;;
+    standard|"")
+        # standard is the default — docker off, ssh+agent on
+        INSTALL_DOCKER=0
+        ;;
+    full)
+        INSTALL_DOCKER=1; INSTALL_SSH=1; INSTALL_AGENT=1
+        log "Profile: full (docker + ssh + agent)"
+        ;;
+    *) die "unknown profile: $PROFILE (use minimal, standard, or full)" ;;
+esac
 
 if [ "$ACTION" = "list" ]; then
     list_templates
@@ -286,6 +320,9 @@ if [ -f "$MICROVM_SETUP" ]; then
     log "Installing first-boot setup script..."
     install -m 755 "$MICROVM_SETUP" "$ROOTFS_DIR/usr/local/bin/microvm-setup"
 
+    # Create profile flag files for the setup script
+    [ "$INSTALL_DOCKER" -eq 0 ] && touch "$ROOTFS_DIR/etc/microvm-no-docker"
+
     # Create a systemd service to run it on first boot (if systemd will be used)
     if [ -d "$ROOTFS_DIR/etc/systemd/system" ] || [ -d "$ROOTFS_DIR/lib/systemd" ]; then
         mkdir -p "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants"
@@ -341,59 +378,58 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 APTSRC
     fi
 
+    # Build package list based on profile flags
+    PKGS="iproute2 isc-dhcp-client systemd systemd-sysv ca-certificates curl cloud-init"
+    [ "$INSTALL_SSH" -eq 1 ] && PKGS="$PKGS openssh-server"
+    [ "$INSTALL_AGENT" -eq 1 ] && PKGS="$PKGS qemu-guest-agent"
+    log "Packages: $PKGS"
+
     # Install packages
-    chroot "$ROOTFS_DIR" /bin/bash -c '
+    chroot "$ROOTFS_DIR" /bin/bash -c "
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -qq 2>/dev/null
-        apt-get install -y -qq --no-install-recommends \
-            iproute2 isc-dhcp-client systemd systemd-sysv \
-            openssh-server cloud-init qemu-guest-agent \
-            ca-certificates curl 2>/dev/null
+        apt-get install -y -qq --no-install-recommends $PKGS 2>/dev/null
 
-        # Enable serial console and essential services
+        # Enable essential services
         systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
-        systemctl enable qemu-guest-agent 2>/dev/null || true
-        # Force-enable: the stock service is 'static' with no Install section
-        ln -sf /usr/lib/systemd/system/qemu-guest-agent.service /etc/systemd/system/multi-user.target.wants/qemu-guest-agent.service 2>/dev/null || true
-        systemctl enable ssh 2>/dev/null || true
         systemctl enable cloud-init 2>/dev/null || true
         systemctl enable systemd-networkd 2>/dev/null || true
         systemctl enable systemd-resolved 2>/dev/null || true
 
-        # DHCP fallback: systemd-networkd on Trixie has config matching issues
-        # with microvm devtmpfs. Use dhclient as a reliable fallback.
-        printf "[Unit]\nDescription=DHCP on eth0\nAfter=network.target\nWants=network.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStartPre=/sbin/ip link set eth0 up\nExecStart=/usr/sbin/dhclient -4 eth0\nExecStop=/usr/sbin/dhclient -r eth0\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-dhcp.service
+        # DHCP fallback
+        printf '[Unit]\nDescription=DHCP on eth0\nAfter=network.target\nWants=network.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStartPre=/sbin/ip link set eth0 up\nExecStart=/usr/sbin/dhclient -4 eth0\nExecStop=/usr/sbin/dhclient -r eth0\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/microvm-dhcp.service
         systemctl enable microvm-dhcp.service 2>/dev/null || true
 
-        # Create a custom console service that does not depend on udev device units
-        # The stock serial-getty@ttyS0 requires dev-ttyS0.device which needs udev
-        # events that devtmpfs from initrd does not generate
+        # Custom serial console service
         systemctl disable serial-getty@ttyS0.service 2>/dev/null || true
-        printf "[Unit]\nDescription=microvm serial console\nAfter=systemd-user-sessions.service\n\n[Service]\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\nRestart=always\nRestartSec=0\nType=idle\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-console.service
+        printf '[Unit]\nDescription=microvm serial console\nAfter=systemd-user-sessions.service\n\n[Service]\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\nRestart=always\nRestartSec=0\nType=idle\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/microvm-console.service
         systemctl enable microvm-console.service 2>/dev/null || true
-
-        # Mask the stock qemu-guest-agent service -- its BindsTo cannot
-        # be cleared via drop-in on Trixie. Use a custom service instead.
-        systemctl mask qemu-guest-agent.service 2>/dev/null || true
-        printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
-        systemctl enable microvm-agent.service 2>/dev/null || true
 
         # Configure cloud-init for PVE nocloud
         mkdir -p /etc/cloud/cloud.cfg.d
-        cat > /etc/cloud/cloud.cfg.d/99-pve.cfg <<CICFG
-datasource_list: [NoCloud, ConfigDrive, None]
-datasource:
-  NoCloud:
-    fs_label: cidata
-CICFG
+        printf 'datasource_list: [NoCloud, ConfigDrive, None]\ndatasource:\n  NoCloud:\n    fs_label: cidata\n' > /etc/cloud/cloud.cfg.d/99-pve.cfg
 
         # Set empty root password
-        sed -i "s|^root:[^:]*:|root::|" /etc/shadow 2>/dev/null || true
+        sed -i 's|^root:[^:]*:|root::|' /etc/shadow 2>/dev/null || true
 
         # Clean up
         apt-get clean 2>/dev/null || true
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-    ' 2>&1 || log "warning: chroot package install had errors"
+    " 2>&1 || log "warning: chroot package install had errors"
+
+    # Conditional services -- run as separate chroot commands
+    # so we can use shell variables
+    if [ "$INSTALL_SSH" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" systemctl enable ssh 2>/dev/null || true
+    fi
+
+    if [ "$INSTALL_AGENT" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" bash -c '
+            systemctl mask qemu-guest-agent.service 2>/dev/null || true
+            printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
+            systemctl enable microvm-agent.service 2>/dev/null || true
+        ' 2>/dev/null || true
+    fi
 
     # Unmount
     umount "$ROOTFS_DIR/dev/pts" 2>/dev/null || true
@@ -412,18 +448,31 @@ elif [ -f "$ROOTFS_DIR/sbin/apk" ] || [ -f "$ROOTFS_DIR/usr/bin/apk" ]; then
     chroot "$ROOTFS_DIR" /bin/sh -c '
         # Alpine: install essentials via apk
         apk update 2>/dev/null
-        apk add --no-cache \
-            openssh qemu-guest-agent dhclient socat cloud-init 2>/dev/null || true
+        APKPKGS="dhclient socat cloud-init"
+    ' 2>&1 || true
 
+    # Conditional Alpine packages
+    APKPKGS="dhclient socat cloud-init"
+    [ "$INSTALL_SSH" -eq 1 ] && APKPKGS="$APKPKGS openssh"
+    [ "$INSTALL_AGENT" -eq 1 ] && APKPKGS="$APKPKGS qemu-guest-agent"
+    chroot "$ROOTFS_DIR" /bin/sh -c "apk add --no-cache $APKPKGS 2>/dev/null" || true
+
+    chroot "$ROOTFS_DIR" /bin/sh -c '
         # Enable services via OpenRC
         if command -v rc-update >/dev/null 2>&1; then
-            rc-update add sshd default 2>/dev/null || true
-            rc-update add qemu-guest-agent default 2>/dev/null || true
+            rc-update add networking default 2>/dev/null || true
         fi
 
         # Set empty root password
         sed -i "s|^root:[^:]*:|root::|" /etc/shadow 2>/dev/null || true
     ' 2>&1 || log "warning: chroot package install had errors"
+
+    if [ "$INSTALL_SSH" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" rc-update add sshd default 2>/dev/null || true
+    fi
+    if [ "$INSTALL_AGENT" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" rc-update add qemu-guest-agent default 2>/dev/null || true
+    fi
 
     umount "$ROOTFS_DIR/dev" 2>/dev/null || true
     umount "$ROOTFS_DIR/sys" 2>/dev/null || true

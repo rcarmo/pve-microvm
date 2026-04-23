@@ -147,6 +147,7 @@ qm terminal 900
 - [x] Nested virtualization (KVM passthrough)
 - [x] Suppress SeaBIOS (qboot auto-selected)
 - [x] Alpine template support (apk-based chroot)
+- [x] Template profiles (minimal/standard/full, --no-docker, --no-ssh, --no-agent)
 - [x] [Plan 9 / 9Front](docs/limitations.md#9front--plan-9-experimental) template (experimental — non-Linux microvm proof-of-concept)
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
@@ -158,10 +159,8 @@ qm terminal 900
 
 | Feature | Priority | Impact | Effort |
 |---|---|---|---|
-| **Template profiles** — minimal/standard/full profiles controlling what gets installed | Medium | High | Low |
-| **`--no-docker`** — skip Docker CE install in template (faster, smaller) | Medium | Medium | Low |
-| **`--no-ssh`** — skip OpenSSH install for isolated/air-gapped microvms | Medium | Medium | Low |
-| **`--no-agent`** — skip guest agent for headless/ephemeral workloads | Medium | Medium | Low |
+| **Template profiles** — implemented: --profile minimal/standard/full | Medium | High | Low |
+
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
 | **Migration** — test live migration | Medium | Medium | Medium |
