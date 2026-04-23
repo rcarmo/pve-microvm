@@ -259,6 +259,10 @@ At the boot prompt, serial console is enabled automatically.
 | `rockylinux:9-minimal` | dnf/microdnf | systemd | full |
 | `almalinux:9-minimal` | dnf/microdnf | systemd | full |
 | `amazonlinux:2023` | dnf | systemd | full |
+| `oraclelinux:9-slim` | dnf | systemd | full |
+| `redhat/ubi9-minimal` | microdnf | systemd | full |
+| `redhat/ubi9-micro` | microdnf | minimal | full |
+| `photon:5.0` | tdnf | systemd | full |
 | `9front` | n/a | Plan 9 | boot only |
 
 Any OCI image from Docker Hub, ghcr.io, or other registries can be used.

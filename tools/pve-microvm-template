@@ -539,8 +539,8 @@ elif [ -f "$ROOTFS_DIR/sbin/apk" ] || [ -f "$ROOTFS_DIR/usr/bin/apk" ]; then
     umount "$ROOTFS_DIR/proc" 2>/dev/null || true
 
     log "Alpine packages installed."
-elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] || [ -f "$ROOTFS_DIR/usr/bin/yum" ]; then
-    log "Installing base packages via chroot (dnf/yum)..."
+elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] || [ -f "$ROOTFS_DIR/usr/bin/tdnf" ] || [ -f "$ROOTFS_DIR/usr/bin/yum" ]; then
+    log "Installing base packages via chroot (dnf/yum/tdnf)..."
 
     mount --bind /proc "$ROOTFS_DIR/proc" 2>/dev/null || true
     mount --bind /sys "$ROOTFS_DIR/sys" 2>/dev/null || true
@@ -551,6 +551,8 @@ elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] |
         PKG_CMD="dnf"
     elif [ -f "$ROOTFS_DIR/usr/bin/microdnf" ]; then
         PKG_CMD="microdnf"
+    elif [ -f "$ROOTFS_DIR/usr/bin/tdnf" ]; then
+        PKG_CMD="tdnf"
     else
         PKG_CMD="yum"
     fi
