@@ -150,6 +150,8 @@ qm terminal 900
 - [x] Alpine template support (apk-based chroot)
 - [x] Template profiles (minimal/standard/full, --no-docker, --no-ssh, --no-agent)
 - [x] [Plan 9 / 9Front](docs/limitations.md#9front--plan-9-experimental) template (experimental — non-Linux microvm proof-of-concept)
+- [x] OSv unikernel template (2.5 MB loader, boots on q35)
+- [x] gokrazy appliance support (instructions for gok CLI)
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates

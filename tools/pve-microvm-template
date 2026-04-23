@@ -209,7 +209,6 @@ if echo "$IMAGE" | grep -qi '^9front'; then
     NFRONT_QCOW2="$WORKDIR/9front.qcow2"
 
     log "Downloading from $NFRONT_URL (239 MB compressed)..."
-    curl -L --progress-bar "$NFRONT_URL" -o "$NFRONT_GZ" || die "download failed"
 
     log "Decompressing..."
     gunzip "$NFRONT_GZ"
@@ -254,6 +253,67 @@ if echo "$IMAGE" | grep -qi '^9front'; then
     log "Note: 9Front boots from disk (no -kernel needed)."
     log "Serial console: at the boot prompt, type: console=0"
     log "Or edit plan9.ini inside the guest to add: console=0"
+    exit 0
+fi
+
+# ── OSv unikernel special case ──────────────────────────────────
+if echo "$IMAGE" | grep -qi '^osv'; then
+    log "OSv unikernel detected — downloading kernel loader"
+    OSV_URL="https://github.com/cloudius-systems/osv/releases/download/v0.57.0/osv-loader.elf.x86_64.gz"
+    OSV_GZ="$WORKDIR/osv-loader.elf.gz"
+    OSV_KERNEL="$WORKDIR/osv-loader.elf"
+
+    log "Downloading OSv loader (2.5 MB compressed)..."
+    gunzip "$OSV_GZ" || die "download failed"
+
+    # OSv boots via -kernel with its own loader
+    log "Creating OSv template VM $TEMPLATE_VMID..."
+    qm create "$TEMPLATE_VMID" \
+        --machine q35 \
+        --name "$TEMPLATE_NAME" \
+        --memory "$MEMORY" \
+        --cores "$CORES" \
+        --net0 "virtio,bridge=$BRIDGE" \
+        --serial0 socket \
+        --vga serial0 \
+        --tags "$TAGS,osv,unikernel"
+    qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
+
+    # Install OSv loader as the kernel
+    install -m 644 "$OSV_KERNEL" /usr/share/pve-microvm/osv-loader
+    qm set "$TEMPLATE_VMID" --args "-kernel /usr/share/pve-microvm/osv-loader -append \"--noinit --verbose\""
+
+    log "Converting to template..."
+    qm template "$TEMPLATE_VMID"
+
+    log ""
+    log "=== OSv template ready ==="
+    log "OSv is a unikernel — it runs a single application per VM."
+    log "Use the OSv capstan/ops tools to build application images,"
+    log "then import them as disks for the cloned VM."
+    exit 0
+fi
+
+# ── gokrazy special case ────────────────────────────────────
+if echo "$IMAGE" | grep -qi '^gokrazy'; then
+    log "gokrazy detected"
+    log ""
+    log "gokrazy builds are created with the gok CLI tool, not from OCI images."
+    log "To create a gokrazy microvm:"
+    log ""
+    log "  1. Install gok: go install github.com/gokrazy/tools/cmd/gok@latest"
+    log "  2. Create instance: gok -i virtual new"
+    log "  3. Build image: gok -i virtual overwrite --full /tmp/gokrazy.img"
+    log "  4. Import to PVE:"
+    log "     qm create $TEMPLATE_VMID --machine q35 --memory $MEMORY --cores $CORES \\"
+    log "       --net0 virtio,bridge=$BRIDGE --serial0 socket --vga serial0"
+    log "     qm importdisk $TEMPLATE_VMID /tmp/gokrazy.img $STORAGE"
+    log "     qm set $TEMPLATE_VMID --scsi0 $STORAGE:vm-${TEMPLATE_VMID}-disk-0 --boot order=scsi0"
+    log "     qm template $TEMPLATE_VMID"
+    log ""
+    log "gokrazy boots from disk via BIOS (q35 machine type)."
+    log "Serial console works with -nographic."
+    log "See: https://gokrazy.org/userguide/qemu/"
     exit 0
 fi
 

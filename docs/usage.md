@@ -264,3 +264,34 @@ At the boot prompt, serial console is enabled automatically.
 Any OCI image from Docker Hub, ghcr.io, or other registries can be used.
 The template tool auto-detects the package manager (`apt`, `apk`, `dnf`/`yum`)
 and installs the appropriate packages.
+
+## Unikernels and specialist OS
+
+### OSv
+
+OSv is a unikernel that runs a single application per VM with minimal overhead:
+
+```bash
+pve-microvm-template --image osv --vmid 9003 --name microvm-osv
+```
+
+Downloads the OSv loader (2.5 MB) and creates a template. Use OSv's
+`capstan` or `ops` tools to build application images, then import as
+disks for cloned VMs.
+
+### gokrazy
+
+gokrazy turns Go programs into appliance images. QEMU x86_64 is supported:
+
+```bash
+pve-microvm-template --image gokrazy --vmid 9004
+# Prints instructions for building with gok CLI
+```
+
+### Other supported specialist OS
+
+| System | Type | Template command | Notes |
+|---|---|---|---|
+| 9Front | Plan 9 OS | `--image 9front` | Pre-built qcow2, q35 boot |
+| OSv | Unikernel | `--image osv` | ELF kernel, needs app image |
+| gokrazy | Go appliance | `--image gokrazy` | Instructions only, needs `gok` |
