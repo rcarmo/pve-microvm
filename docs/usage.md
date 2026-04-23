@@ -247,3 +247,20 @@ At the boot prompt, serial console is enabled automatically.
 > alternative operating systems beyond Linux — a stepping stone toward
 > supporting specialist microkernels used in telco (e.g., PikeOS, QNX),
 > real-time systems (e.g., Zephyr, seL4), and research OS platforms.
+
+## Supported distributions
+
+| Image | Package manager | Init | Profile support |
+|---|---|---|---|
+| `debian:trixie-slim` | apt | systemd | full |
+| `ubuntu:24.04` | apt | systemd | full |
+| `alpine:latest` | apk | busybox/OpenRC | full |
+| `fedora:41` | dnf | systemd | full |
+| `rockylinux:9-minimal` | dnf/microdnf | systemd | full |
+| `almalinux:9-minimal` | dnf/microdnf | systemd | full |
+| `amazonlinux:2023` | dnf | systemd | full |
+| `9front` | n/a | Plan 9 | boot only |
+
+Any OCI image from Docker Hub, ghcr.io, or other registries can be used.
+The template tool auto-detects the package manager (`apt`, `apk`, `dnf`/`yum`)
+and installs the appropriate packages.

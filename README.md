@@ -86,6 +86,7 @@ qm terminal 900
 | **`pve-microvm-bench`** | Measure boot time and resource overhead |
 | **`microvm-init`** | Minimal init for images without one (e.g., `debian:trixie-slim`) |
 | **`vmlinuz-microvm`** | Pre-built 6.12.22 kernel with PCIe virtio + vsock + virtiofs |
+| **Supported distros** | Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon Linux |
 | **Web UI extension** | `microvm` in machine dropdown, ⚡ icon, xterm.js serial console |
 
 ## Tested on

@@ -479,8 +479,69 @@ elif [ -f "$ROOTFS_DIR/sbin/apk" ] || [ -f "$ROOTFS_DIR/usr/bin/apk" ]; then
     umount "$ROOTFS_DIR/proc" 2>/dev/null || true
 
     log "Alpine packages installed."
+elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] || [ -f "$ROOTFS_DIR/usr/bin/yum" ]; then
+    log "Installing base packages via chroot (dnf/yum)..."
+
+    mount --bind /proc "$ROOTFS_DIR/proc" 2>/dev/null || true
+    mount --bind /sys "$ROOTFS_DIR/sys" 2>/dev/null || true
+    mount --bind /dev "$ROOTFS_DIR/dev" 2>/dev/null || true
+
+    # Detect package manager
+    if [ -f "$ROOTFS_DIR/usr/bin/dnf" ]; then
+        PKG_CMD="dnf"
+    elif [ -f "$ROOTFS_DIR/usr/bin/microdnf" ]; then
+        PKG_CMD="microdnf"
+    else
+        PKG_CMD="yum"
+    fi
+
+    # Build package list
+    DNFPKGS="iproute dhcp-client systemd cloud-init"
+    [ "$INSTALL_SSH" -eq 1 ] && DNFPKGS="$DNFPKGS openssh-server"
+    [ "$INSTALL_AGENT" -eq 1 ] && DNFPKGS="$DNFPKGS qemu-guest-agent"
+    log "Packages ($PKG_CMD): $DNFPKGS"
+
+    chroot "$ROOTFS_DIR" /bin/bash -c "
+        $PKG_CMD install -y $DNFPKGS 2>/dev/null || true
+
+        # Enable services
+        systemctl enable systemd-networkd 2>/dev/null || true
+        systemctl enable cloud-init 2>/dev/null || true
+
+        # Serial console
+        systemctl disable serial-getty@ttyS0.service 2>/dev/null || true
+        printf '[Unit]\\nDescription=microvm serial console\\nAfter=systemd-user-sessions.service\\n\\n[Service]\\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\\nRestart=always\\nRestartSec=0\\nType=idle\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/microvm-console.service
+        systemctl enable microvm-console.service 2>/dev/null || true
+
+        # DHCP fallback
+        printf '[Unit]\\nDescription=DHCP on eth0\\nAfter=network.target\\n\\n[Service]\\nType=oneshot\\nRemainAfterExit=yes\\nExecStartPre=/sbin/ip link set eth0 up\\nExecStart=/usr/sbin/dhclient -4 eth0\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/microvm-dhcp.service
+        systemctl enable microvm-dhcp.service 2>/dev/null || true
+
+        # Set empty root password
+        sed -i 's|^root:[^:]*:|root::|' /etc/shadow 2>/dev/null || true
+
+        # Clean
+        $PKG_CMD clean all 2>/dev/null || true
+    " 2>&1 || log "warning: chroot package install had errors"
+
+    if [ "$INSTALL_SSH" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" systemctl enable sshd 2>/dev/null || true
+    fi
+    if [ "$INSTALL_AGENT" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" bash -c '
+            systemctl mask qemu-guest-agent.service 2>/dev/null || true
+            printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
+            systemctl enable microvm-agent.service 2>/dev/null || true
+        ' 2>/dev/null || true
+    fi
+
+    umount "$ROOTFS_DIR/dev" 2>/dev/null || true
+    umount "$ROOTFS_DIR/sys" 2>/dev/null || true
+    umount "$ROOTFS_DIR/proc" 2>/dev/null || true
+
+    log "RPM packages installed."
 else
-    log "No apt-get or apk found — skipping chroot package install"
+    log "No apt-get, apk, or dnf found — skipping chroot package install"
 fi
 
 # Step 4: Create disk image
