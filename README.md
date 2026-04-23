@@ -7,6 +7,7 @@
 </p>
 
 A Debian package that adds QEMU `microvm` machine type support to Proxmox VE.
+Runs OCI container images, [Firecracker rootfs images](docs/firecracker.md), unikernels, and alternative OS as lightweight hardware-isolated VMs.
 
 > **⚠️ Highly experimental.** This project patches `qemu-server` internals and
 > has not been tested in production. Use at your own risk. The patches are
@@ -109,6 +110,7 @@ qm terminal 900
 - **[Configuration](docs/configuration.md)** — supported/unsupported options, example config
 - **[Architecture](docs/architecture.md)** — how it works, QEMU command line, storage backends
 - **[Kernel Guide](kernel/README.md)** — build config, defconfig base, PVE overlay
+- **[Firecracker Compatibility](docs/firecracker.md)** — importing Firecracker rootfs images
 - **[Known Issues](docs/known-issues.md)** — agent timing, serial buffering, slow hardware
 - **[Limitations](docs/limitations.md)** — what doesn't work (yet)
 - **[Troubleshooting](docs/troubleshooting.md)** — common issues and fixes
