@@ -263,6 +263,7 @@ At the boot prompt, serial console is enabled automatically.
 | `redhat/ubi9-minimal` | microdnf | systemd | full |
 | `redhat/ubi9-micro` | microdnf | minimal | full |
 | `photon:5.0` | tdnf | systemd | full |
+| `mcr.microsoft.com/azurelinux/base/core:3.0` | tdnf | minimal | full |
 | `9front` | n/a | Plan 9 | boot only |
 
 Any OCI image from Docker Hub, ghcr.io, or other registries can be used.
