@@ -163,3 +163,20 @@ Not yet. The current implementation is x86_64 only. ARM64 support would need a d
 ### Can I migrate microvms between nodes?
 
 Not tested. Live migration of microvm guests may work since the PCIe device model is simpler than a full q35 VM, but this hasn't been validated. It's on the roadmap.
+
+### Can I use Firecracker rootfs images?
+
+Yes. Firecracker rootfs images are raw ext4 filesystem files — the same
+format our tools produce. Import them directly:
+
+```bash
+qm create 900 --machine microvm --memory 256 --serial0 socket --vga serial0
+qm importdisk 900 /path/to/firecracker-rootfs.ext4 local-lvm
+qm set 900 --scsi0 local-lvm:vm-900-disk-0
+qm set 900 --args '-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=/dev/vda rw"'
+```
+
+You use our kernel (not Firecracker's vmlinux) but the rootfs is
+interchangeable. There's no separate "Firecracker registry" — any ext4
+rootfs works, whether built for Firecracker, Docker-exported, or
+created by `pve-oci-import`.
