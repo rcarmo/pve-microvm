@@ -55,6 +55,13 @@ The `prerm` hook automatically reverts all patches and restores the original
 | **`pve-qemu-kvm`** | 10.x | QEMU with microvm support |
 | **Host kernel** | 6.14+ | PVE 9 default |
 
+### Tested nodes
+
+| Node | CPU | RAM | Notes |
+|---|---|---|---|
+| **z83ii** | Intel Atom x5-Z8350 @ 1.44 GHz | 2 GB | Low-end stability testing |
+| **borg** | Intel Core i7-12700 @ 4.9 GHz, 20 cores | 128 GB | Performance reference |
+
 ### Dependencies
 
 - `skopeo` — OCI image pulling
