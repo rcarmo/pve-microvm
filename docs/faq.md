@@ -15,7 +15,7 @@ Not yet. This is highly experimental. It patches `qemu-server` internals and has
 We deliberately test on the slowest node in the cluster — an Intel Atom
 x5-Z8350 — to make sure performance is acceptable everywhere.
 
-**z83ii** (Intel Atom x5-Z8350 @ 1.44 GHz, 16 GB RAM):
+**z83ii** (Intel Atom x5-Z8350 @ 1.44 GHz, 2 GB RAM):
 
 | Stage | Busybox (Alpine) | Debian trixie-slim |
 |---|---|---|

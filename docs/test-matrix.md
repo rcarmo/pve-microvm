@@ -61,7 +61,7 @@ all node specs.
 
 | Node | CPU | Cores | RAM | Storage | PVE | QEMU |
 |---|---|---|---|---|---|---|
-| z83ii | Atom x5-Z8350 @ 1.44 GHz | 4 | 16 GB | LVM-thin 456 GB | 9.1.7 | 10.1.2 |
+| z83ii | Atom x5-Z8350 @ 1.44 GHz | 4 | 2 GB | LVM-thin 456 GB | 9.1.7 | 10.1.2 |
 | borg | i7-12700 @ 4.9 GHz | 20 | 128 GB | LVM-thin 2.6 TB | 9.1.7 | 10.1.2 |
 
 Full cluster: 4 nodes (z83ii, u59, tnas, borg) — see [Cluster Hardware](cluster-hardware.md).
