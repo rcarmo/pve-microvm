@@ -483,23 +483,55 @@
             };
         }
 
-        // ── 11. Console type: prefer xterm.js for microvm ───────────
+        // ── 11. Console: force xterm.js for microvm VMs ────────────
 
-        if (PVE.Utils.openDefaultConsoleWindow) {
-            var origConsole = PVE.Utils.openDefaultConsoleWindow;
-            PVE.Utils.openDefaultConsoleWindow = function (conf, consoleType, url) {
-                // For microvm VMs, always use xterm.js (serial console)
-                if (conf && conf.type === 'kvm') {
-                    // Try to detect microvm from the selection node
-                    var selNode = Ext.ComponentQuery.query('pveResourceTree')[0];
-                    if (selNode) {
-                        var selected = selNode.getSelection();
-                        if (selected && selected.length > 0 && hasMicrovmTag(selected[0].data)) {
-                            consoleType = 'html5';
+        // Patch openDefaultConsoleWindow to detect microvm and force xterm.js
+        var origOpenDefault = PVE.Utils.openDefaultConsoleWindow;
+        PVE.Utils.openDefaultConsoleWindow = function (consoles, consoleType, vmid, nodename, vmname, cmd) {
+            if (consoleType === 'kvm' && vmid) {
+                // Check if this VM is a microvm by looking at the resource store
+                var rstore = PVE.data && PVE.data.ResourceStore;
+                if (rstore) {
+                    var rec = rstore.findRecord('vmid', vmid);
+                    if (rec && hasMicrovmTag(rec.data)) {
+                        // Force xterm.js for microvm (serial console)
+                        PVE.Utils.openConsoleWindow('xtermjs', consoleType, vmid, nodename, vmname, cmd);
+                        return;
+                    }
+                }
+                // Also check via the resource tree
+                var trees = Ext.ComponentQuery.query('pveResourceTree');
+                if (trees && trees.length > 0) {
+                    var store = trees[0].getStore();
+                    if (store) {
+                        var node = store.findNode('vmid', vmid);
+                        if (node && hasMicrovmTag(node.data)) {
+                            PVE.Utils.openConsoleWindow('xtermjs', consoleType, vmid, nodename, vmname, cmd);
+                            return;
                         }
                     }
                 }
-                return origConsole.call(this, conf, consoleType, url);
+            }
+            return origOpenDefault.call(this, consoles, consoleType, vmid, nodename, vmname, cmd);
+        };
+
+        // Also patch the ConsoleButton handler directly for microvm VMs
+        if (Ext.ClassManager.get('PVE.button.ConsoleButton')) {
+            var origConsoleHandler = PVE.button.ConsoleButton.prototype.handler;
+            PVE.button.ConsoleButton.prototype.handler = function () {
+                var me = this;
+                if (me.consoleType === 'kvm' && me.vmid) {
+                    // Check resource store for microvm tag
+                    var rstore = PVE.data && PVE.data.ResourceStore;
+                    if (rstore) {
+                        var rec = rstore.findRecord('vmid', me.vmid);
+                        if (rec && hasMicrovmTag(rec.data)) {
+                            Proxmox.Utils.openXtermJsViewer('kvm', me.vmid, me.nodename, me.consoleName, me.cmd);
+                            return;
+                        }
+                    }
+                }
+                return origConsoleHandler.call(me);
             };
         }
 
