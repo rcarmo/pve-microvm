@@ -19,6 +19,7 @@ override_dh_auto_install:
 	install -m 755 tools/pve-oci-import $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-template $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-share $(CURDIR)/debian/pve-microvm/usr/bin/
+	install -m 755 tools/pve-microvm-9p $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-ssh-agent $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-run $(CURDIR)/debian/pve-microvm/usr/bin/
 	install -m 755 tools/pve-microvm-bench $(CURDIR)/debian/pve-microvm/usr/bin/

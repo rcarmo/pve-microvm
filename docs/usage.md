@@ -339,3 +339,43 @@ ha-manager relocate vm:9011 borg
 
 > **Note**: Live migration (`--online`) is not supported for the microvm
 > machine type. HA relocate performs a stop-migrate-start cycle automatically.
+
+## 9p filesystem sharing
+
+9p is a simpler alternative to virtiofs — no daemon required. QEMU handles
+the filesystem export natively.
+
+### Setup
+
+```bash
+# Add a 9p share (VM must be stopped)
+pve-microvm-9p 900 /srv/data mydata
+
+# Start the VM
+qm start 900
+
+# Inside the guest
+mount -t 9p mydata /mnt/mydata -o trans=virtio,version=9p2000.L
+```
+
+### Management
+
+```bash
+pve-microvm-9p 900 --list              # list shares
+pve-microvm-9p 900 --remove mydata     # remove a share
+pve-microvm-9p 900 --clear             # remove all shares
+```
+
+### 9p vs virtiofs
+
+| | 9p (`pve-microvm-9p`) | virtiofs (`pve-microvm-share`) |
+|---|---|---|
+| Daemon | None (QEMU built-in) | virtiofsd required |
+| Setup | Simpler | More complex |
+| Performance | Good for most use cases | Better for large file I/O |
+| Hot-add | No (configure before boot) | No (configure before boot) |
+| Guest support | Needs `CONFIG_9P_FS` | Needs `CONFIG_FUSE` |
+
+> **Note**: 9p requires the microvm kernel to include `CONFIG_9P_FS=y`.
+> This is included in the kernel overlay config but requires a kernel
+> rebuild to take effect. The next release kernel will include 9p support.

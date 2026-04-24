@@ -141,6 +141,7 @@ qm terminal 900
 - [x] SSH agent forwarding via vsock (`pve-microvm-ssh-agent`)
 - [x] vsock host↔guest sockets (CID = VMID + 1000)
 - [x] virtiofs shared folders (`pve-microvm-share`)
+- [x] 9p filesystem sharing (`pve-microvm-9p`, no daemon needed)
 - [x] Volume mounts via virtiofs
 - [x] `qm shutdown` — graceful shutdown via guest agent
 - [x] Disk resize (`qm disk resize`)
@@ -177,7 +178,7 @@ qm terminal 900
 |---|---|---|---|
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
-| **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
+| **9p filesystem sharing** — alternative to virtiofs | ✅ Done | ✅ Done | ✅ Done |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |
 | **Custom icon persistence** — ⚡ across browsers | ✅ Done | ✅ Done | ✅ Done |

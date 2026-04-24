@@ -1,0 +1,127 @@
+#!/bin/bash
+# pve-microvm-9p — share host directories into a microvm guest via 9p
+#
+# Usage:
+#   pve-microvm-9p <vmid> <host-path> [tag]         # add a 9p share
+#   pve-microvm-9p <vmid> --list                     # list shares
+#   pve-microvm-9p <vmid> --remove <tag>             # remove a share
+#   pve-microvm-9p <vmid> --clear                    # remove all shares
+#
+# 9p shares are configured BEFORE starting the VM. Unlike virtiofs,
+# no daemon is needed — QEMU handles 9p natively.
+#
+# Guest mount:
+#   mount -t 9p <tag> /mnt/<tag> -o trans=virtio,version=9p2000.L
+#
+# Comparison with virtiofs (pve-microvm-share):
+#   9p:       No daemon, simpler setup, good performance for most uses
+#   virtiofs: Needs virtiofsd, better performance for large files / IO-heavy workloads
+
+set -euo pipefail
+
+PROG=$(basename "$0")
+VMID="${1:-}"
+ACTION="${2:-}"
+TAG="${3:-}"
+CONF_DIR="/var/run/pve-microvm"
+
+log()  { echo "[$PROG] $*"; }
+die()  { echo "[$PROG] ERROR: $*" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROG <vmid> <host-path> [tag]      Add a 9p share (tag defaults to dir name)
+  $PROG <vmid> --list                 List configured shares
+  $PROG <vmid> --remove <tag>         Remove a share by tag
+  $PROG <vmid> --clear                Remove all shares
+
+9p shares must be configured before starting the VM.
+
+Guest mount:
+  mount -t 9p <tag> /mnt/<tag> -o trans=virtio,version=9p2000.L
+
+Example:
+  $PROG 900 /srv/data mydata
+  qm start 900
+  # Inside guest:
+  mount -t 9p mydata /mnt/mydata -o trans=virtio,version=9p2000.L
+EOF
+    exit 1
+}
+
+[ -n "$VMID" ] || usage
+[[ "$VMID" =~ ^[0-9]+$ ]] || die "VMID must be a number"
+
+CONF="$CONF_DIR/${VMID}-9p.conf"
+mkdir -p "$CONF_DIR"
+
+case "$ACTION" in
+    --list)
+        if [ -f "$CONF" ]; then
+            log "9p shares for VM $VMID:"
+            while read -r tag path secmodel; do
+                [ -z "$tag" ] && continue
+                [[ "$tag" == \#* ]] && continue
+                echo "  $tag  →  $path  (security: ${secmodel:-mapped-xattr})"
+            done < "$CONF"
+        else
+            log "No 9p shares configured for VM $VMID"
+        fi
+        ;;
+
+    --remove)
+        [ -n "$TAG" ] || die "Usage: $PROG $VMID --remove <tag>"
+        if [ -f "$CONF" ]; then
+            grep -v "^${TAG} " "$CONF" > "${CONF}.tmp" 2>/dev/null || true
+            mv "${CONF}.tmp" "$CONF"
+            log "Removed 9p share '$TAG' from VM $VMID"
+        else
+            log "No shares configured"
+        fi
+        ;;
+
+    --clear)
+        rm -f "$CONF"
+        log "Cleared all 9p shares for VM $VMID"
+        ;;
+
+    --help|-h)
+        usage
+        ;;
+
+    *)
+        # Add a share: ACTION is the host path, TAG is optional
+        HOSTPATH="$ACTION"
+        [ -d "$HOSTPATH" ] || die "$HOSTPATH is not a directory"
+
+        # Default tag to basename of path
+        if [ -z "$TAG" ]; then
+            TAG=$(basename "$HOSTPATH")
+            # Sanitize: replace non-alphanumeric with underscore
+            TAG=$(echo "$TAG" | tr -c '[:alnum:]_-' '_')
+        fi
+
+        # Check VM is not running
+        STATUS=$(qm status "$VMID" 2>/dev/null | awk '{print $2}')
+        if [ "$STATUS" = "running" ]; then
+            die "VM $VMID is running. Stop it first, then add the share and restart."
+        fi
+
+        # Check for duplicate tag
+        if [ -f "$CONF" ] && grep -q "^${TAG} " "$CONF" 2>/dev/null; then
+            # Replace existing
+            grep -v "^${TAG} " "$CONF" > "${CONF}.tmp" 2>/dev/null || true
+            mv "${CONF}.tmp" "$CONF"
+        fi
+
+        # Append
+        echo "$TAG $HOSTPATH mapped-xattr" >> "$CONF"
+        log "Added 9p share for VM $VMID:"
+        log "  Tag:  $TAG"
+        log "  Path: $HOSTPATH"
+        log ""
+        log "Start the VM, then mount inside the guest:"
+        log "  mount -t 9p $TAG /mnt/$TAG -o trans=virtio,version=9p2000.L"
+        ;;
+esac

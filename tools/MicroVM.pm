@@ -338,13 +338,30 @@ sub microvm_config_to_command {
         push @$cmd, '-device', "vhost-vsock-pci-non-transitional,guest-cid=$cid";
     }
 
-    # ── virtiofs (shared host directories) ───────────────────
-    # Shares host directories into the guest via virtiofs.
-    # Configured via VM description or a config file.
-    # Format in args: -virtfs <tag>:/host/path
-    # The guest mounts with: mount -t virtiofs <tag> /mnt/shared
-    #
-    # For now, check if virtiofsd socket exists for this VM
+    # ── 9p filesystem sharing (QEMU built-in, no daemon needed) ────
+    # Check for 9p share config: /var/run/pve-microvm/<vmid>-9p.conf
+    # Each line: <tag> <host-path> [security_model]
+    # Guest mounts with: mount -t 9p <tag> /mnt/<tag> -o trans=virtio,version=9p2000.L
+    my $ninep_conf = "/var/run/pve-microvm/${vmid}-9p.conf";
+    if (-f $ninep_conf) {
+        my $ninep_id = 0;
+        open(my $fh, '<', $ninep_conf) or warn "Cannot read $ninep_conf: $!";
+        while (my $line = <$fh>) {
+            chomp $line;
+            next if $line =~ /^\s*#/ || $line =~ /^\s*$/;
+            my ($tag, $path, $secmodel) = split(/\s+/, $line, 3);
+            $secmodel //= 'mapped-xattr';
+            next unless $tag && $path && -d $path;
+            push @$cmd, '-fsdev', "local,id=fsdev${ninep_id},path=${path},security_model=${secmodel}";
+            push @$cmd, '-device', "virtio-9p-pci-non-transitional,fsdev=fsdev${ninep_id},mount_tag=${tag}";
+            $ninep_id++;
+        }
+        close($fh);
+    }
+
+    # ── virtiofs (shared host directories via virtiofsd) ──────────
+    # Higher performance than 9p but requires virtiofsd daemon.
+    # Guest mounts with: mount -t virtiofs shared /mnt/shared
     my $virtiofs_socket = "/var/run/pve-microvm/${vmid}-virtiofs.sock";
     if (-S $virtiofs_socket) {
         push @$cmd, '-chardev', "socket,id=virtiofs0,path=$virtiofs_socket";
