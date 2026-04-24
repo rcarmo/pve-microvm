@@ -1,5 +1,8 @@
 /*
  * pve-microvm UI styles
+ *
+ * Custom styles for microvm VMs in the Proxmox VE web interface.
+ * Loaded via <link> in index.html.tpl by the postinst patch script.
  */
 
 /* ── Tag badge ──────────────────────────────────────────────────── */
@@ -11,26 +14,86 @@
 }
 
 /* ── Resource tree icon: fa-bolt for microvm guests ─────────────── */
-.x-tree-icon-custom.fa-desktop.pve-microvm:before,
-.x-grid-icon-custom.fa-desktop.pve-microvm:before {
-    content: "\f0e7";  /* fa-bolt */
+/* Running microvm */
+.x-tree-icon-custom.pve-microvm:before,
+.x-grid-icon-custom.pve-microvm:before {
+    content: "\f0e7" !important;  /* fa-bolt */
+}
+.x-tree-icon-custom.pve-microvm,
+.x-grid-icon-custom.pve-microvm {
+    color: #7c3aed !important;
 }
 
-.x-tree-icon-custom.fa-desktop.pve-microvm,
-.x-grid-icon-custom.fa-desktop.pve-microvm {
-    color: #7c3aed;
-}
-.x-tree-icon-custom.fa-desktop.pve-microvm.running,
-.x-grid-icon-custom.fa-desktop.pve-microvm.running {
-    color: #6d28d9;
-}
-.x-tree-icon-custom.fa-desktop.pve-microvm.stopped,
-.x-grid-icon-custom.fa-desktop.pve-microvm.stopped {
-    color: #c4b5fd;
+/* Running state — brighter purple */
+.x-tree-icon-custom.pve-microvm.running,
+.x-grid-icon-custom.pve-microvm.running {
+    color: #6d28d9 !important;
 }
 
-/* ── Disabled hardware items tooltip ────────────────────────────── */
+/* Stopped state — faded purple */
+.x-tree-icon-custom.pve-microvm.stopped,
+.x-grid-icon-custom.pve-microvm.stopped {
+    color: #c4b5fd !important;
+}
+
+/* Template state — dashed outline effect */
+.x-tree-icon-custom.pve-microvm.template,
+.x-grid-icon-custom.pve-microvm.template {
+    color: #a78bfa !important;
+    opacity: 0.8;
+}
+
+/* ── Microvm info banner in summary/hardware ────────────────────── */
+.pve-microvm-banner {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.pve-microvm-banner .fa {
+    font-size: 14px;
+}
+
+/* ── Disabled/hidden hardware items ─────────────────────────────── */
+.pve-microvm-hidden {
+    display: none !important;
+}
+
 .pve-microvm-disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     pointer-events: none;
+}
+
+.pve-microvm-disabled .x-menu-item-text::after {
+    content: " (n/a)";
+    font-style: italic;
+    font-size: 0.85em;
+    color: #999;
+}
+
+/* ── Microvm status chip ────────────────────────────────────────── */
+.pve-microvm-chip {
+    display: inline-block;
+    background-color: #7c3aed;
+    color: white;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* ── Dark theme adjustments ─────────────────────────────────────── */
+.pve-dark .pve-microvm-banner {
+    background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+}
+.pve-dark .pve-microvm-chip {
+    background-color: #6d28d9;
 }
