@@ -94,9 +94,9 @@ The `pve-microvm.js` extension (injected into `index.html.tpl`):
 
 | Node | CPU | RAM | Role |
 |---|---|---|---|
-| **z83ii** | Intel Atom x5-Z8350, 4 cores @ 1.44 GHz | 2 GB | Stability testing on worst-case hardware |
-| **borg** | Intel Core i7-12700, 20 cores @ 4.9 GHz | 125 GB | Performance reference and multi-node testing |
+| **z83ii** | Intel Atom x5-Z8350, 4 cores @ 1.44 GHz | 16 GB | Stability testing on worst-case hardware |
+| **borg** | Intel Core i7-12700, 20 cores @ 4.9 GHz | 128 GB | Performance reference and multi-node testing |
 
 Both nodes run PVE 9.1.7 with QEMU 10.1.2 and kernel 6.17.13-2-pve.
 The z83ii is deliberately used as the primary test node — if microvms
-work well on a 2 GB Atom, they'll work anywhere.
+work well on an Atom, they'll work anywhere.

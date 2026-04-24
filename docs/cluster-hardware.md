@@ -6,10 +6,10 @@ pve-microvm v0.3.0 is deployed and tested across a 4-node Proxmox VE cluster.
 
 | Node | CPU | Cores | RAM | Storage | Role |
 |---|---|---|---|---|---|
-| **z83ii** | Intel Atom x5-Z8350 @ 1.44 GHz | 4 | 2 GB | LVM-thin 456 GB, dir 26 GB | Worst-case stability testing |
+| **z83ii** | Intel Atom x5-Z8350 @ 1.44 GHz | 4 | 16 GB | LVM-thin 456 GB, dir 26 GB | Worst-case stability testing |
 | **u59** | Intel Celeron N5105 @ 2.00 GHz | 4 | 15 GB | LVM-thin 597 GB, dir 94 GB | Low-mid range validation |
 | **tnas** | Intel Core i5-1235U (12th gen) | 12 | 15 GB | ZFS 10.7 TB, dir 795 GB | ZFS storage testing |
-| **borg** | Intel Core i7-12700 (12th gen) | 20 | 125 GB | LVM-thin 1.7 TB + 913 GB, dir 94 GB | Performance reference |
+| **borg** | Intel Core i7-12700 (12th gen) | 20 | 128 GB | LVM-thin 1.7 TB + 913 GB, dir 94 GB | Performance reference |
 
 ## Shared infrastructure
 
@@ -34,7 +34,7 @@ pve-microvm v0.3.0 is deployed and tested across a 4-node Proxmox VE cluster.
 ## Notes
 
 - **z83ii** is deliberately the primary test node — if microvms boot and run
-  well on a 2 GB Atom, they'll work anywhere.
+  well on an Atom, they'll work anywhere.
 - **borg** serves as the performance reference and migration target.
 - **tnas** provides ZFS storage backend testing (the only node with ZFS).
 - **u59** validates the mid-range: 4 cores but with 15 GB RAM.
