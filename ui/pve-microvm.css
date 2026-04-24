@@ -8,7 +8,7 @@
 /* ── Tag badge ──────────────────────────────────────────────────── */
 .proxmox-tags-full .proxmox-tag-microvm,
 .proxmox-tags-dense .proxmox-tag-microvm {
-    background-color: #7c3aed !important;
+    background-color: #f59e0b !important;
     color: white !important;
     font-weight: bold;
 }
@@ -21,31 +21,31 @@
 }
 .x-tree-icon-custom.pve-microvm,
 .x-grid-icon-custom.pve-microvm {
-    color: #7c3aed !important;
+    color: #f59e0b !important;
 }
 
 /* Running state — brighter purple */
 .x-tree-icon-custom.pve-microvm.running,
 .x-grid-icon-custom.pve-microvm.running {
-    color: #6d28d9 !important;
+    color: #d97706 !important;
 }
 
 /* Stopped state — faded purple */
 .x-tree-icon-custom.pve-microvm.stopped,
 .x-grid-icon-custom.pve-microvm.stopped {
-    color: #c4b5fd !important;
+    color: #fcd34d !important;
 }
 
 /* Template state — dashed outline effect */
 .x-tree-icon-custom.pve-microvm.template,
 .x-grid-icon-custom.pve-microvm.template {
-    color: #a78bfa !important;
+    color: #fbbf24 !important;
     opacity: 0.8;
 }
 
 /* ── Microvm info banner in summary/hardware ────────────────────── */
 .pve-microvm-banner {
-    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
     color: white;
     padding: 6px 14px;
     border-radius: 4px;
@@ -80,7 +80,7 @@
 /* ── Microvm status chip ────────────────────────────────────────── */
 .pve-microvm-chip {
     display: inline-block;
-    background-color: #7c3aed;
+    background-color: #f59e0b;
     color: white;
     padding: 1px 8px;
     border-radius: 10px;
@@ -92,13 +92,13 @@
 
 /* ── Dark theme adjustments ─────────────────────────────────────── */
 .pve-dark .pve-microvm-banner {
-    background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+    background: linear-gradient(135deg, #d97706 0%, #92400e 100%);
 }
 .pve-dark .pve-microvm-chip {
-    background-color: #6d28d9;
+    background-color: #d97706;
 }
 
 /* ── Create µVM button in header toolbar ───────────────────────── */
 .pve-microvm-btn {
-    color: #7c3aed !important;
+    color: #f59e0b !important;
 }

@@ -604,7 +604,7 @@
                 items: [
                     {
                         xtype: 'displayfield',
-                        value: '<div style="background:#7c3aed;color:white;padding:8px 12px;border-radius:4px;margin-bottom:10px">' +
+                        value: '<div style="background:#f59e0b;color:white;padding:8px 12px;border-radius:4px;margin-bottom:10px">' +
                                '<i class="fa fa-bolt"></i> Create a microvm from an OCI container image</div>',
                     },
                     {
