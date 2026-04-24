@@ -6,6 +6,41 @@
 
 A Debian package that adds QEMU's `microvm` machine type as a managed guest type in Proxmox VE. It lets you create lightweight, hardware-isolated VMs that boot in under a second, managed through the same `qm` CLI and web UI you already use for regular VMs and containers.
 
+
+### What Linux distributions are supported?
+
+All 12 tested distros create templates and boot on both z83ii (Atom) and
+borg (i7-12700). The `pve-microvm-template` tool auto-detects the package
+manager and installs base services.
+
+| Image | Size | Pkg mgr |
+|---|---|---|
+| `alpine:3.21` | 3 MB | apk |
+| `redhat/ubi9-micro` | 6 MB | microdnf |
+| `photon:5.0` | 15 MB | tdnf |
+| `debian:trixie-slim` | 28 MB | apt |
+| `ubuntu:24.04` | 28 MB | apt |
+| `mcr.microsoft.com/azurelinux/base/core:3.0` | 30 MB | tdnf |
+| `almalinux:9-minimal` | 34 MB | dnf |
+| `redhat/ubi9-minimal` | 38 MB | microdnf |
+| `rockylinux:9-minimal` | 44 MB | dnf |
+| `oraclelinux:9-slim` | 45 MB | dnf |
+| `amazonlinux:2023` | 52 MB | dnf |
+| `fedora:41` | 57 MB | dnf |
+
+Any OCI image with a supported package manager should work. You can also
+pass `--profile minimal` to skip package installation entirely and just
+use the image as-is with our `microvm-init`.
+
+### What about non-Linux?
+
+| Image | Type | Notes |
+|---|---|---|
+| `9front` | Plan 9 | Boots via q35/BIOS, experimental |
+| `osv` | Unikernel | ELF loader, needs app image |
+| `gokrazy` | Go appliance | Prints build instructions |
+| Firecracker rootfs | ext4 | Direct import via `qm importdisk` |
+
 ### Can I use this in production?
 
 Not yet. This is highly experimental. It patches `qemu-server` internals and has been tested on a single node (z83ii, Intel Atom). The patches are reversible and the architecture is sound, but it needs broader testing before production use. Back up your Proxmox configuration before installing.

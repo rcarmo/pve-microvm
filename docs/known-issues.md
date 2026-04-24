@@ -36,7 +36,7 @@ Harmless warning from the microvm boot. The guest kernel tries standard
 PCI config space probing before the PCIe ECAM from microvm is initialized.
 Does not affect device functionality — all virtio devices bind correctly.
 
-## Cloud-init Perl warning
+## Cloud-init Perl warning (FIXED in qemu-server 9.1.8)
 
 ```
 Use of uninitialized value in split at /usr/share/perl5/PVE/QemuServer/Cloudinit.pm line 115.
@@ -44,6 +44,8 @@ Use of uninitialized value in split at /usr/share/perl5/PVE/QemuServer/Cloudinit
 
 Harmless PVE warning when generating cloud-init ISO for microvms.
 Cloud-init data is injected correctly despite the warning.
+
+**Fixed**: This warning is resolved in `qemu-server` 9.1.8+.
 
 ## HA relocate (not live)
 

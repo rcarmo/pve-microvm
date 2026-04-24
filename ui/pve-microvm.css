@@ -24,13 +24,13 @@
     color: #f59e0b !important;
 }
 
-/* Running state — brighter purple */
+/* Running state — brighter amber */
 .x-tree-icon-custom.pve-microvm.running,
 .x-grid-icon-custom.pve-microvm.running {
     color: #d97706 !important;
 }
 
-/* Stopped state — faded purple */
+/* Stopped state — faded amber */
 .x-tree-icon-custom.pve-microvm.stopped,
 .x-grid-icon-custom.pve-microvm.stopped {
     color: #fcd34d !important;

@@ -2,8 +2,8 @@
 
 ## No display
 
-No VGA, QXL, or virtio-gpu. No VNC/noVNC/SPICE. Serial console only
-(`qm terminal` or xterm.js via `vga: serial0`).
+No VGA, QXL, or virtio-gpu. No VNC/SPICE. Serial console only via xterm.js
+(PVE web UI auto-selects xterm.js for microvm, or use `qm terminal`).
 
 ## No PCI passthrough
 

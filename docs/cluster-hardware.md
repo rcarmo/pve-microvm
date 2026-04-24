@@ -15,7 +15,7 @@ pve-microvm v0.3.0 is deployed and tested across a 4-node Proxmox VE cluster.
 
 | Component | Details |
 |---|---|
-| **PVE version** | 9.1.7 (all nodes) |
+| **PVE version** | 9.1.7–9.1.9 (all nodes) |
 | **QEMU** | 10.1.2 (all nodes) |
 | **Host kernel** | 6.17.13-2-pve (all nodes) |
 | **Cluster name** | Home (corosync, 4 votes, quorate) |

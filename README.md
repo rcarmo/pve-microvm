@@ -65,7 +65,7 @@ qm create 900 --machine microvm --memory 256 --cores 1 \
   --name my-microvm --net0 virtio,bridge=vmbr0 \
   --serial0 socket --vga serial0
 
-pve-oci-import --image alpine:latest --vmid 900 --configure
+pve-oci-import --image alpine:3.21 --vmid 900 --configure
 
 qm start 900
 qm terminal 900
@@ -87,7 +87,7 @@ qm terminal 900
 | **`pve-microvm-bench`** | Measure boot time and resource overhead |
 | **`microvm-init`** | Minimal init for images without one (e.g., `debian:trixie-slim`) |
 | **`vmlinuz-microvm`** | Pre-built 6.12.22 kernel with PCIe virtio + vsock + virtiofs |
-| **Supported distros** | Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon Linux |
+| **Supported distros** | Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, UBI, Photon, Azure Linux |
 | **Web UI extension** | `microvm` in machine dropdown, ⚡ icon, xterm.js serial console |
 
 ## Tested on
@@ -168,7 +168,7 @@ qm terminal 900
 - [x] GUI: one-click clone from microvm templates
 - [x] GUI: microvm chip badge, info banners, options filtering
 - [x] GUI: context menu serial console + clone shortcuts
-- [x] GUI: custom icon persistence (CSS-based, purple ⚡ bolt)
+- [x] GUI: custom icon persistence (CSS-based, amber ⚡ bolt)
 - [x] GUI: wizard auto-config (serial, agent, 256MB memory)
 - [x] GUI: dark mode support
 - [x] systemd-networkd auto-enable

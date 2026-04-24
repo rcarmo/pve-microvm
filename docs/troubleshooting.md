@@ -67,7 +67,7 @@ The VM must exist first:
 
 ```bash
 qm create <vmid> --machine microvm --memory 256
-pve-oci-import --image alpine:latest --vmid <vmid>
+pve-oci-import --image alpine:3.21 --vmid <vmid>
 ```
 
 ## No network / no guest agent / no balloon

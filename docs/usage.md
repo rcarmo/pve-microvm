@@ -175,7 +175,7 @@ When a VM uses `machine: microvm`:
 - **Add hardware menu**: unsupported device types are disabled
 - **Machine edit**: vIOMMU and version options are hidden
 - **Console button**: opens xterm.js serial terminal (via `vga: serial0`)
-- **Resource tree**: microvm-tagged VMs show a ⚡ bolt icon in purple
+- **Resource tree**: microvm-tagged VMs show a ⚡ bolt icon in amber
 - **Template context menu**: right-click → "⚡ Clone microvm" for one-click cloning
 
 ## Ephemeral VMs
@@ -187,7 +187,7 @@ Run a command in a disposable microvm that's destroyed after exit:
 pve-microvm-run -- uname -a
 
 # Interactive shell
-pve-microvm-run -it --image alpine:latest
+pve-microvm-run -it --image alpine:3.21
 
 # Without network (sandbox)
 pve-microvm-run --no-net -- echo "isolated"
@@ -204,7 +204,7 @@ guest agent, then destroyed automatically.
 Alpine Linux works out of the box:
 
 ```bash
-pve-microvm-template --image alpine:latest --vmid 9001 --name microvm-alpine
+pve-microvm-template --image alpine:3.21 --vmid 9001 --name microvm-alpine
 ```
 
 Alpine templates use busybox init + inittab (no systemd). The chroot
@@ -254,7 +254,7 @@ At the boot prompt, serial console is enabled automatically.
 |---|---|---|---|
 | `debian:trixie-slim` | apt | systemd | full |
 | `ubuntu:24.04` | apt | systemd | full |
-| `alpine:latest` | apk | busybox/OpenRC | full |
+| `alpine:3.21` | apk | busybox/OpenRC | full |
 | `fedora:41` | dnf | systemd | full |
 | `rockylinux:9-minimal` | dnf/microdnf | systemd | full |
 | `almalinux:9-minimal` | dnf/microdnf | systemd | full |
