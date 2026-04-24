@@ -1,3 +1,15 @@
+pve-microvm (0.3.0-1) trixie; urgency=medium
+
+  * Major release: 37 features shipped.
+  * 13 Linux distros + 4 non-Linux OS supported.
+  * Template profiles: minimal/standard/full.
+  * Ephemeral VMs, benchmarking, Firecracker compatibility.
+  * dnf/tdnf/microdnf support for RPM distros.
+  * OSv unikernel and gokrazy appliance support.
+  * Azure Linux tested on z83ii.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 24 Apr 2026 01:00:00 +0000
+
 pve-microvm (0.2.0-1) trixie; urgency=medium
 
   * Minor version bump: 34 roadmap items shipped.
