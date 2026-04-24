@@ -2,6 +2,10 @@
 
 Last updated: 2026-04-24
 
+Tested on a 4-node cluster. This matrix shows the smallest (z83ii) and
+largest (borg) nodes. See [Cluster Hardware](cluster-hardware.md) for
+all node specs.
+
 ## Linux distributions
 
 | Image | Size | Pkg mgr | Template | Boot (z83ii) | Boot (borg) |
@@ -53,12 +57,14 @@ Last updated: 2026-04-24
 | HA relocate | ✅ | ✅ |
 | GUI (panel hiding, clone, icon) | ✅ | ✅ |
 
-## Test hardware
+## Test hardware (boundary nodes)
 
-| Node | CPU | RAM | Storage | PVE | QEMU | pve-microvm |
+| Node | CPU | Cores | RAM | Storage | PVE | QEMU |
 |---|---|---|---|---|---|---|
-| z83ii | Atom x5-Z8350 @ 1.44 GHz, 4 cores | 2 GB | LVM-thin (456 GB), dir (25 GB) | 9.1.7 | 10.1.2 | v0.3.0 |
-| borg | i7-12700 @ 4.9 GHz, 20 cores | 125 GB | LVM-thin (1.7 TB + 912 GB), dir (93 GB) | 9.1.7 | 10.1.2 | v0.3.0 |
+| z83ii | Atom x5-Z8350 @ 1.44 GHz | 4 | 2 GB | LVM-thin 456 GB | 9.1.7 | 10.1.2 |
+| borg | i7-12700 @ 4.9 GHz | 20 | 125 GB | LVM-thin 2.6 TB | 9.1.7 | 10.1.2 |
+
+Full cluster: 4 nodes (z83ii, u59, tnas, borg) — see [Cluster Hardware](cluster-hardware.md).
 
 ## Legend
 
