@@ -187,16 +187,24 @@
 
                     view.isMicrovm = true;
 
-                    // Filter out unsupported hardware entries
-                    store.filterBy(function (rec) {
-                        var key = rec.get('key');
-                        if (!key) return true;
-                        for (var i = 0; i < HIDDEN_HW_KEYS.length; i++) {
-                            if (key === HIDDEN_HW_KEYS[i]) return false;
-                        }
-                        if (key.match(/^usb\d+$/) || key.match(/^hostpci\d+$/)) return false;
-                        return true;
-                    });
+                    // Hide unsupported rows via CSS rather than store.filterBy
+                    // (filterBy breaks Remove button and other store operations)
+                    var gridView = view.getView();
+                    if (gridView) {
+                        store.each(function (rec) {
+                            var key = rec.get('key');
+                            if (!key) return;
+                            var hide = false;
+                            for (var i = 0; i < HIDDEN_HW_KEYS.length; i++) {
+                                if (key === HIDDEN_HW_KEYS[i]) { hide = true; break; }
+                            }
+                            if (key.match(/^usb\d+$/) || key.match(/^hostpci\d+$/)) hide = true;
+                            if (hide) {
+                                var rowNode = gridView.getNode(rec);
+                                if (rowNode) rowNode.style.display = 'none';
+                            }
+                        });
+                    }
 
                     // Add info banner if not already present
                     if (!view._microvmBannerAdded) {
