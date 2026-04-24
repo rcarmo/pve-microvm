@@ -1,4 +1,5 @@
 # Triggers for qemu-server package changes
 # When qemu-server is upgraded, our patches need to be re-applied
-interest /usr/share/perl5/PVE/QemuServer.pm
-interest /usr/share/perl5/PVE/QemuServer/Machine.pm
+# Use interest-noawait to avoid trigger loops (we modify the same files)
+interest-noawait /usr/share/perl5/PVE/QemuServer.pm
+interest-noawait /usr/share/perl5/PVE/QemuServer/Machine.pm
