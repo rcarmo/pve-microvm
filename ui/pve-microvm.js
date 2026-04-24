@@ -543,8 +543,235 @@
             };
         }
 
-        // ── 12. "Create µVM" button in header toolbar ────────────
+        // ── 12. "Create µVM" dialog and button ─────────────────
 
+        // Common OCI images for the dropdown
+        var OCI_IMAGES = [
+            ['alpine:3.21', 'Alpine 3.21 (3 MB)'],
+            ['debian:trixie-slim', 'Debian Trixie Slim (28 MB)'],
+            ['ubuntu:24.04', 'Ubuntu 24.04 (28 MB)'],
+            ['fedora:41', 'Fedora 41 (57 MB)'],
+            ['rockylinux:9-minimal', 'Rocky Linux 9 Minimal (44 MB)'],
+            ['almalinux:9-minimal', 'Alma Linux 9 Minimal (34 MB)'],
+            ['amazonlinux:2023', 'Amazon Linux 2023 (52 MB)'],
+            ['oraclelinux:9-slim', 'Oracle Linux 9 Slim (45 MB)'],
+            ['redhat/ubi9-minimal', 'Red Hat UBI 9 Minimal (38 MB)'],
+            ['redhat/ubi9-micro', 'Red Hat UBI 9 Micro (6 MB)'],
+            ['photon:5.0', 'VMware Photon 5.0 (15 MB)'],
+            ['mcr.microsoft.com/azurelinux/base/core:3.0', 'Azure Linux 3.0 (30 MB)'],
+        ];
+
+        var PROFILES = [
+            ['minimal', 'Minimal (shell only, no services)'],
+            ['standard', 'Standard (SSH + guest agent, no Docker)'],
+            ['full', 'Full (SSH + agent + Docker)'],
+        ];
+
+        function openMicrovmDialog(nodename) {
+            // Get next VMID
+            Proxmox.Utils.API2Request({
+                url: '/cluster/nextid',
+                method: 'GET',
+                success: function (response) {
+                    var nextid = response.result.data;
+                    showMicrovmDialog(nodename, nextid);
+                },
+                failure: function () {
+                    showMicrovmDialog(nodename, 100);
+                },
+            });
+        }
+
+        function showMicrovmDialog(nodename, defaultVmid) {
+            // Get default node from selection if not provided
+            if (!nodename) {
+                var trees = Ext.ComponentQuery.query('pveResourceTree');
+                if (trees && trees.length > 0) {
+                    var sel = trees[0].getSelection();
+                    if (sel && sel.length > 0) {
+                        nodename = sel[0].data.node || sel[0].data.text;
+                    }
+                }
+            }
+
+            var win = Ext.create('Ext.window.Window', {
+                title: '\u26a1 Create \u00b5VM',
+                width: 520,
+                modal: true,
+                bodyPadding: 15,
+                layout: 'anchor',
+                defaults: { anchor: '100%', labelWidth: 120 },
+                items: [
+                    {
+                        xtype: 'displayfield',
+                        value: '<div style="background:#7c3aed;color:white;padding:8px 12px;border-radius:4px;margin-bottom:10px">' +
+                               '<i class="fa fa-bolt"></i> Create a microvm from an OCI container image</div>',
+                    },
+                    {
+                        xtype: 'pveNodeSelector',
+                        name: 'node',
+                        fieldLabel: 'Node',
+                        value: nodename,
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'numberfield',
+                        name: 'vmid',
+                        fieldLabel: 'VM ID',
+                        value: defaultVmid,
+                        minValue: 100,
+                        maxValue: 999999999,
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'textfield',
+                        name: 'name',
+                        fieldLabel: 'Name',
+                        value: 'microvm',
+                        allowBlank: false,
+                        vtype: 'DnsName',
+                    },
+                    {
+                        xtype: 'combobox',
+                        name: 'image',
+                        fieldLabel: 'OCI Image',
+                        store: OCI_IMAGES,
+                        queryMode: 'local',
+                        editable: true,
+                        forceSelection: false,
+                        value: 'debian:trixie-slim',
+                        emptyText: 'e.g. alpine:3.21 or myregistry.io/myimage:tag',
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'pveStorageSelector',
+                        name: 'storage',
+                        fieldLabel: 'Storage',
+                        nodename: nodename,
+                        storageContent: 'images',
+                        value: 'local-lvm',
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'numberfield',
+                        name: 'memory',
+                        fieldLabel: 'Memory (MB)',
+                        value: 256,
+                        minValue: 64,
+                        maxValue: 65536,
+                        step: 64,
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'textfield',
+                        name: 'disksize',
+                        fieldLabel: 'Disk Size',
+                        value: '2G',
+                        emptyText: 'e.g. 1G, 2G, 512M',
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'combobox',
+                        name: 'profile',
+                        fieldLabel: 'Profile',
+                        store: PROFILES,
+                        queryMode: 'local',
+                        editable: false,
+                        value: 'standard',
+                        allowBlank: false,
+                    },
+                    {
+                        xtype: 'numberfield',
+                        name: 'cores',
+                        fieldLabel: 'CPU Cores',
+                        value: 1,
+                        minValue: 1,
+                        maxValue: 128,
+                        allowBlank: false,
+                    },
+                ],
+                buttons: [
+                    {
+                        text: 'Create',
+                        iconCls: 'fa fa-bolt',
+                        formBind: true,
+                        handler: function () {
+                            var form = win.down('form') || win;
+                            var values = {};
+                            win.query('field').forEach(function (f) {
+                                if (f.name && f.getValue) values[f.name] = f.getValue();
+                            });
+
+                            var node = values.node;
+                            var vmid = values.vmid;
+                            var name = values.name;
+                            var image = values.image;
+                            var storage = values.storage;
+                            var memory = values.memory;
+                            var disksize = values.disksize;
+                            var profile = values.profile;
+                            var cores = values.cores;
+
+                            if (!node || !vmid || !image) {
+                                Ext.Msg.alert('Error', 'Please fill in all required fields.');
+                                return;
+                            }
+
+                            // Build the template command
+                            var cmd = 'pve-microvm-template' +
+                                ' --image ' + image +
+                                ' --vmid ' + vmid +
+                                ' --name ' + name +
+                                ' --storage ' + storage +
+                                ' --memory ' + memory +
+                                ' --disk-size ' + disksize +
+                                ' --profile ' + profile +
+                                ' --cores ' + cores;
+
+                            win.close();
+
+                            // Open an xterm.js shell to run the command
+                            // Use the node shell with a custom command
+                            var url = Ext.Object.toQueryString({
+                                console: 'shell',
+                                xtermjs: 1,
+                                node: node,
+                                cmd: cmd,
+                            });
+                            var termWin = window.open('?' + url, '_blank',
+                                'toolbar=no,location=no,status=no,menubar=no,resizable=yes,width=800,height=500');
+
+                            // Also show the command for manual use
+                            Ext.Msg.show({
+                                title: '\u26a1 Creating \u00b5VM ' + vmid,
+                                msg: '<p>A terminal window is opening to build your microvm.</p>' +
+                                     '<p>If the terminal does not open, run this on the node:</p>' +
+                                     '<pre style="background:#1a1a2e;color:#e0e0e0;padding:10px;border-radius:4px;margin-top:8px;' +
+                                     'font-size:12px;overflow-x:auto;white-space:pre-wrap">' + Ext.htmlEncode(cmd) + '</pre>',
+                                buttons: Ext.Msg.OK,
+                                icon: Ext.Msg.INFO,
+                            });
+                        },
+                    },
+                    {
+                        text: 'Cancel',
+                        handler: function () { win.close(); },
+                    },
+                ],
+            });
+
+            // Update storage selector when node changes
+            win.down('[name=node]').on('change', function (field, newNode) {
+                var storageSel = win.down('[name=storage]');
+                if (storageSel && storageSel.setNodename) {
+                    storageSel.setNodename(newNode);
+                }
+            });
+
+            win.show();
+        }
+
+        // Add the header toolbar button
         var addCreateButton = function () {
             var viewport = Ext.ComponentQuery.query('viewport')[0];
             if (!viewport) return false;
@@ -579,30 +806,7 @@
                 text: 'Create \u00b5VM',
                 disabled: !vmCaps['VM.Allocate'],
                 handler: function () {
-                    var wiz = Ext.create('PVE.qemu.CreateWizard', {});
-                    wiz.show();
-
-                    // After the wizard renders, pre-select microvm
-                    wiz.on('afterrender', function () {
-                        var machineCombo = wiz.down('[name=machine]');
-                        if (machineCombo) {
-                            // Ensure microvm option exists
-                            if (machineCombo.store) {
-                                var found = false;
-                                machineCombo.store.each(function (rec) {
-                                    if (rec.get('value') === 'microvm') found = true;
-                                });
-                                if (!found) {
-                                    machineCombo.store.add({ value: 'microvm', text: 'microvm ⚡' });
-                                }
-                            }
-                            // Set after a short delay to let the store load
-                            setTimeout(function () {
-                                machineCombo.setValue('microvm');
-                                machineCombo.fireEvent('change', machineCombo, 'microvm');
-                            }, 200);
-                        }
-                    });
+                    openMicrovmDialog();
                 },
             });
 
@@ -658,28 +862,7 @@
                         itemId: 'createmicrovm',
                         iconCls: 'fa fa-bolt',
                         handler: function () {
-                            var wiz = Ext.create('PVE.qemu.CreateWizard', {
-                                nodename: nodename,
-                            });
-                            wiz.show();
-                            wiz.on('afterrender', function () {
-                                var machineCombo = wiz.down('[name=machine]');
-                                if (machineCombo) {
-                                    if (machineCombo.store) {
-                                        var found = false;
-                                        machineCombo.store.each(function (rec) {
-                                            if (rec.get('value') === 'microvm') found = true;
-                                        });
-                                        if (!found) {
-                                            machineCombo.store.add({ value: 'microvm', text: 'microvm ⚡' });
-                                        }
-                                    }
-                                    setTimeout(function () {
-                                        machineCombo.setValue('microvm');
-                                        machineCombo.fireEvent('change', machineCombo, 'microvm');
-                                    }, 200);
-                                }
-                            });
+                            openMicrovmDialog(nodename);
                         },
                     });
                 }
