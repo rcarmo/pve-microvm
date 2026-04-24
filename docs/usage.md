@@ -50,7 +50,10 @@ qm terminal 901
 ```
 
 The template includes a first-boot setup script (`microvm-setup`) that
-installs cloud-init, qemu-guest-agent, Docker CE, and SSH.
+installs packages based on the selected profile:
+- **minimal**: no services, just `microvm-init` shell
+- **standard** (default): cloud-init, SSH, qemu-guest-agent
+- **full**: standard + Docker CE
 
 ### Template options
 
@@ -61,6 +64,12 @@ installs cloud-init, qemu-guest-agent, Docker CE, and SSH.
 | `--name` | `microvm-trixie` | Template name |
 | `--storage` | `local-lvm` | PVE storage backend |
 | `--disk-size` | `2G` | Root disk size |
+| `--memory` | `512` | Memory in MB |
+| `--cores` | `1` | CPU cores |
+| `--profile` | `standard` | `minimal`, `standard`, or `full` |
+| `--no-docker` | — | Skip Docker install (even in full profile) |
+| `--no-ssh` | — | Skip SSH server install |
+| `--no-agent` | — | Skip guest agent install |
 | `--list` | — | List existing microvm templates |
 | `--refresh` | — | Re-fetch even if template exists |
 
@@ -168,6 +177,19 @@ qm destroy 900     # Remove VM and disks
 ```
 
 ## Web UI features
+
+### Create µVM button
+
+The PVE header toolbar has a **Create µVM** button (⚡ bolt icon) next to
+Create VM and Create CT. It opens a dedicated dialog with:
+- OCI image selector (12 pre-configured distros + freeform entry)
+- Profile picker (minimal / standard / full)
+- Storage, memory, cores, disk size fields
+- Auto-populated VM ID from the cluster
+
+The same option appears in the node right-click context menu.
+
+### Microvm VM features
 
 When a VM uses `machine: microvm`:
 

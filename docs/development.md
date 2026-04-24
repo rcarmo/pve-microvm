@@ -41,7 +41,10 @@ pve-microvm/
 │   ├── pve-microvm-template          # Template creator
 │   ├── pve-oci-import                # OCI importer
 │   ├── pve-microvm-share             # virtiofs share manager
-│   └── pve-microvm-ssh-agent         # SSH agent forwarder
+│   ├── pve-microvm-9p               # 9p share manager (no daemon)
+│   ├── pve-microvm-ssh-agent         # SSH agent forwarder
+│   ├── pve-microvm-run               # Ephemeral VM runner
+│   └── pve-microvm-bench             # Boot time benchmarking
 ├── ui/                               # Web UI extensions
 │   ├── pve-microvm.css               # Icon + tag styles
 │   └── pve-microvm.js                # Wizard, hardware view, clone menu

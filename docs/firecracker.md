@@ -41,7 +41,7 @@ qm terminal 900
 
 | | Firecracker | pve-microvm |
 |---|---|---|
-| VMM | Firecracker (libkrun) | QEMU microvm |
+| VMM | Firecracker VMM | QEMU microvm |
 | Kernel | Firecracker's `vmlinux` | Our 6.12.22 kernel + initrd |
 | Rootfs | ext4 image | Same ext4 image (compatible) |
 | Network | Firecracker TAP | Proxmox bridge via virtio |

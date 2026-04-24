@@ -27,7 +27,7 @@ coding agents and other semi-trusted workloads.
 | Isolation | Namespace (shared kernel) | **KVM (own kernel)** | KVM (own kernel) |
 | Boot time | ~50 ms | **< 200 ms** | 2–10 s |
 | Overhead | Minimal | **Minimal** | Moderate |
-| Attack surface | Broad (host kernel) | **Minimal (virtio-mmio)** | Broad (emulated PC) |
+| Attack surface | Broad (host kernel) | **Minimal (virtio-pcie)** | Broad (emulated PC) |
 | Untrusted code | ⚠️ risky | **✅ safe** | ✅ safe |
 
 **Hardware-isolated VMs with container-like speed**, managed through the same
@@ -180,10 +180,8 @@ qm terminal 900
 |---|---|---|---|
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
-| **9p filesystem sharing** — alternative to virtiofs | ✅ Done | ✅ Done | ✅ Done |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |
-| **Custom icon persistence** — ⚡ across browsers | ✅ Done | ✅ Done | ✅ Done |
 | **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
 | **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |
 | **AArch64 guest support** — ARM64 PVE hosts | Low | Medium | High |

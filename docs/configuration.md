@@ -74,6 +74,7 @@ When `machine: microvm` is detected, `MicroVM.pm` automatically:
 - Adds `virtio-balloon-pci-non-transitional` for memory reporting
 - Adds `vhost-vsock-pci-non-transitional` with CID = VMID + 1000 (if `/dev/vhost-vsock` exists)
 - Adds virtiofs device (if `pve-microvm-share` started a virtiofsd for this VM)
+- Adds 9p share devices (if `pve-microvm-9p` configured shares for this VM)
 - Injects `-initrd` automatically when using the shipped kernel
 - Strips `vmgenid` and `smbios1` from config
 - Sets `serial0: socket` if not already set
