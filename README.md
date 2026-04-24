@@ -112,6 +112,7 @@ qm terminal 900
 - **[Architecture](docs/architecture.md)** — how it works, QEMU command line, storage backends
 - **[Kernel Guide](kernel/README.md)** — build config, defconfig base, PVE overlay
 - **[Firecracker Compatibility](docs/firecracker.md)** — importing Firecracker rootfs images
+- **[Test Matrix](docs/test-matrix.md)** — distros, features, and hardware tested
 - **[Known Issues](docs/known-issues.md)** — agent timing, serial buffering, slow hardware
 - **[Limitations](docs/limitations.md)** — what doesn't work (yet)
 - **[Troubleshooting](docs/troubleshooting.md)** — common issues and fixes
