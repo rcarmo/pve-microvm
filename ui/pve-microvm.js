@@ -302,6 +302,28 @@
                             if (!conf) return;
                             if (!isMicrovmConfig(conf)) return;
 
+                            // Switch Console tab from noVNC to xterm.js for microvm
+                            var consoleTab = config.down('#console');
+                            if (consoleTab) {
+                                // The pveNoVncConsole widget supports xtermjs mode
+                                // Replace with a new instance that uses xterm.js
+                                var tabPanel = consoleTab.ownerCt;
+                                var tabIdx = tabPanel ? tabPanel.items.indexOf(consoleTab) : -1;
+                                if (tabPanel && tabIdx >= 0) {
+                                    tabPanel.remove(consoleTab, true);
+                                    tabPanel.insert(tabIdx, {
+                                        title: gettext('Console'),
+                                        itemId: 'console',
+                                        iconCls: 'fa fa-bolt',
+                                        xtype: 'pveNoVncConsole',
+                                        vmid: vmid,
+                                        consoleType: 'kvm',
+                                        nodename: node,
+                                        xtermjs: true,
+                                    });
+                                }
+                            }
+
                             // Add microvm chip to the title
                             var titleCmp = config.down('title') || config.getHeader();
                             if (titleCmp && titleCmp.getEl) {
