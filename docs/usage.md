@@ -300,3 +300,42 @@ pve-microvm-template --image gokrazy --vmid 9004
 | 9Front | Plan 9 OS | `--image 9front` | Pre-built qcow2, q35 boot |
 | OSv | Unikernel | `--image osv` | ELF kernel, needs app image |
 | gokrazy | Go appliance | `--image gokrazy` | Instructions only, needs `gok` |
+
+## High Availability
+
+Microvms support HA via offline migration on shared storage. Live migration
+is not supported (QEMU microvm machine type limitation).
+
+### Requirements
+
+- Shared storage with `content images` (CIFS, NFS, etc.)
+- VM disks on the shared storage
+- pve-microvm installed on all target nodes
+
+### Setup
+
+```bash
+# Create VM on shared storage
+pve-microvm-template --image alpine:3.21 --vmid 9010 --storage backup
+
+# Clone and add to HA
+qm clone 9010 9011 --name ha-vm --full
+ha-manager add vm:9011 --group Intel --state started
+
+# Relocate to another node (stops, migrates, restarts)
+ha-manager relocate vm:9011 borg
+```
+
+### Tested flow
+
+| Step | Result |
+|---|---|
+| Create on z83ii (shared CIFS) | ✅ |
+| Offline migrate z83ii → borg | ✅ (2 seconds) |
+| Start on borg | ✅ |
+| HA add + started | ✅ |
+| HA relocate borg → z83ii | ✅ |
+| VM running after relocate | ✅ |
+
+> **Note**: Live migration (`--online`) is not supported for the microvm
+> machine type. HA relocate performs a stop-migrate-start cycle automatically.

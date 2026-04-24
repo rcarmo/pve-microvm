@@ -46,6 +46,9 @@
 | SSH agent forwarding | code ready | — |
 | Template profiles | ✅ | — |
 | GUI (panel hiding, clone) | ✅ | — |
+| Offline migration | ✅ z83ii→borg | ✅ borg→z83ii |
+| HA (ha-manager) | ✅ | ✅ |
+| HA relocate | ✅ | ✅ |
 
 ## Test hardware
 
