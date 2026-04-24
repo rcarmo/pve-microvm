@@ -503,6 +503,141 @@
             };
         }
 
-        console.log('pve-microvm: UI patches applied (icon, machine, wizard, hardware, summary, options, console, clone)');
+        // ── 12. "Create µVM" button in header toolbar ────────────
+
+        var addCreateButton = function () {
+            var viewport = Ext.ComponentQuery.query('viewport')[0];
+            if (!viewport) return false;
+
+            // Find the header area where Create VM / Create CT buttons live
+            var createVMBtn = viewport.down('button[iconCls~=fa-desktop]');
+            if (!createVMBtn) return false;
+
+            // Don't add twice
+            if (viewport.down('#createMicrovmBtn')) return true;
+
+            var parent = createVMBtn.ownerCt;
+            if (!parent) return false;
+
+            var caps = Ext.state.Manager.get('GuiCap') || {};
+            var vmCaps = caps.vms || {};
+
+            var createMicrovmBtn = Ext.createWidget('button', {
+                itemId: 'createMicrovmBtn',
+                pack: 'end',
+                margin: '3 5 0 0',
+                baseCls: 'x-btn',
+                iconCls: 'fa fa-bolt pve-microvm-btn',
+                text: 'Create \u00b5VM',
+                disabled: !vmCaps['VM.Allocate'],
+                handler: function () {
+                    var wiz = Ext.create('PVE.qemu.CreateWizard', {});
+                    wiz.show();
+
+                    // After the wizard renders, pre-select microvm
+                    wiz.on('afterrender', function () {
+                        var machineCombo = wiz.down('[name=machine]');
+                        if (machineCombo) {
+                            // Ensure microvm option exists
+                            if (machineCombo.store) {
+                                var found = false;
+                                machineCombo.store.each(function (rec) {
+                                    if (rec.get('value') === 'microvm') found = true;
+                                });
+                                if (!found) {
+                                    machineCombo.store.add({ value: 'microvm', text: 'microvm ⚡' });
+                                }
+                            }
+                            // Set after a short delay to let the store load
+                            setTimeout(function () {
+                                machineCombo.setValue('microvm');
+                                machineCombo.fireEvent('change', machineCombo, 'microvm');
+                            }, 200);
+                        }
+                    });
+                },
+            });
+
+            // Insert after Create VM button
+            var idx = parent.items.indexOf(createVMBtn);
+            if (idx >= 0) {
+                parent.insert(idx + 1, createMicrovmBtn);
+            } else {
+                parent.add(createMicrovmBtn);
+            }
+
+            // Track capability changes
+            Ext.state.Manager.on('statechange', function (sp, key, value) {
+                if (key === 'GuiCap' && value) {
+                    createMicrovmBtn.setDisabled(!(value.vms || {})['VM.Allocate']);
+                }
+            });
+
+            return true;
+        };
+
+        // Retry until viewport is ready
+        var btnAttempts = 0;
+        var btnInterval = setInterval(function () {
+            btnAttempts++;
+            if (btnAttempts > 100 || addCreateButton()) {
+                clearInterval(btnInterval);
+            }
+        }, 200);
+
+        // ── 13. "Create µVM" in node context menu ───────────────────
+
+        if (Ext.ClassManager.get('PVE.node.CmdMenu')) {
+            var origNodeCmdInit = PVE.node.CmdMenu.prototype.initComponent;
+            PVE.node.CmdMenu.prototype.initComponent = function () {
+                origNodeCmdInit.call(this);
+                var menu = this;
+                var nodename = menu.nodename;
+
+                // Find the Create VM item and insert after it
+                var createVMItem = null;
+                var createVMIdx = -1;
+                menu.items.each(function (item, idx) {
+                    if (item.itemId === 'createvm') {
+                        createVMItem = item;
+                        createVMIdx = idx;
+                    }
+                });
+
+                if (createVMIdx >= 0) {
+                    menu.insert(createVMIdx + 1, {
+                        text: 'Create \u00b5VM',
+                        itemId: 'createmicrovm',
+                        iconCls: 'fa fa-bolt',
+                        handler: function () {
+                            var wiz = Ext.create('PVE.qemu.CreateWizard', {
+                                nodename: nodename,
+                            });
+                            wiz.show();
+                            wiz.on('afterrender', function () {
+                                var machineCombo = wiz.down('[name=machine]');
+                                if (machineCombo) {
+                                    if (machineCombo.store) {
+                                        var found = false;
+                                        machineCombo.store.each(function (rec) {
+                                            if (rec.get('value') === 'microvm') found = true;
+                                        });
+                                        if (!found) {
+                                            machineCombo.store.add({ value: 'microvm', text: 'microvm ⚡' });
+                                        }
+                                    }
+                                    setTimeout(function () {
+                                        machineCombo.setValue('microvm');
+                                        machineCombo.fireEvent('change', machineCombo, 'microvm');
+                                    }, 200);
+                                }
+                            });
+                        },
+                    });
+                }
+            };
+        }
+
+        console.log('pve-microvm: UI patches applied (icon, machine, wizard, hardware, summary, options, console, clone, create-button)');
     }
 })();

@@ -97,3 +97,8 @@
 .pve-dark .pve-microvm-chip {
     background-color: #6d28d9;
 }
+
+/* ── Create µVM button in header toolbar ───────────────────────── */
+.pve-microvm-btn {
+    color: #7c3aed !important;
+}
