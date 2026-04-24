@@ -48,12 +48,13 @@ The `prerm` hook automatically reverts all patches and restores the original
 
 ## Requirements
 
-| Component | Version | Notes |
-|---|---|---|
-| **Proxmox VE** | 9.0+ | Debian Trixie based |
-| **`qemu-server`** | 9.1.x | Patched by this package |
-| **`pve-qemu-kvm`** | 10.x | QEMU with microvm support |
-| **Host kernel** | 6.14+ | PVE 9 default |
+| Component | Version | Tested | Notes |
+|---|---|---|---|
+| **Proxmox VE** | 9.0+ | 9.1.7, 9.1.9 | Debian Trixie based |
+| **`qemu-server`** | 9.1.x | 9.1.6, 9.1.8 | Patched by this package |
+| **`pve-qemu-kvm`** | 10.x | 10.1.2 | QEMU with microvm support |
+| **`pve-ha-manager`** | 5.x | 5.1.3, 5.2.0 | HA relocate tested |
+| **Host kernel** | 6.14+ | 6.17.13-2-pve, 6.17.13-3-pve | PVE 9 default |
 
 ### Tested nodes
 

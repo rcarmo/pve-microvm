@@ -96,7 +96,8 @@ qm terminal 900
 |---|---|---|
 | **CPU** | Intel Atom x5-Z8350 @ 1.44 GHz | Intel Core i7-12700 @ 4.9 GHz (20 cores) |
 | **RAM** | 2 GB | 128 GB |
-| **Proxmox VE** | 9.1.7 | 9.1.7 |
+| **Proxmox VE** | 9.1.9 | 9.1.7 |
+| **qemu-server** | 9.1.8 | 9.1.6 |
 | **QEMU** | 10.1.2 | 10.1.2 |
 | **Host kernel** | 6.17.13-2-pve | 6.17.13-2-pve |
 | **Guest kernel** | 6.12.22 LTS | 6.12.22 LTS |
