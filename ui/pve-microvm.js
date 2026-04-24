@@ -541,8 +541,16 @@
             var viewport = Ext.ComponentQuery.query('viewport')[0];
             if (!viewport) return false;
 
-            // Find the header area where Create VM / Create CT buttons live
-            var createVMBtn = viewport.down('button[iconCls~=fa-desktop]');
+            // Find the Create VM button in the header toolbar
+            var createVMBtn = null;
+            var allButtons = viewport.query('button');
+            for (var i = 0; i < allButtons.length; i++) {
+                var btn = allButtons[i];
+                if (btn.text && btn.text === gettext('Create VM') && btn.iconCls && btn.iconCls.indexOf('fa-desktop') >= 0) {
+                    createVMBtn = btn;
+                    break;
+                }
+            }
             if (!createVMBtn) return false;
 
             // Don't add twice
