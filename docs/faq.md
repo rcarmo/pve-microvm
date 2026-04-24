@@ -24,7 +24,7 @@ x5-Z8350 — to make sure performance is acceptable everywhere.
 | + DHCP networking ready | ~4 s | ~15 s |
 | + DHCP + guest agent responding | ~8 s | ~30 s |
 
-**borg** (Intel Core i7-12700 @ 4.9 GHz, 20 cores, 128 GB RAM):
+**borg** (Intel Core i7-12700 @ 4.9 GHz, 20 cores, 125 GB RAM):
 
 | Stage | Busybox (Alpine) | Debian trixie-slim |
 |---|---|---|

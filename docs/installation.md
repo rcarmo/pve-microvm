@@ -60,7 +60,7 @@ The `prerm` hook automatically reverts all patches and restores the original
 | Node | CPU | RAM | Notes |
 |---|---|---|---|
 | **z83ii** | Intel Atom x5-Z8350 @ 1.44 GHz | 2 GB | Low-end stability testing |
-| **borg** | Intel Core i7-12700 @ 4.9 GHz, 20 cores | 128 GB | Performance reference |
+| **borg** | Intel Core i7-12700 @ 4.9 GHz, 20 cores | 125 GB | Performance reference |
 
 ### Dependencies
 

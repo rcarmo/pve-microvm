@@ -52,7 +52,7 @@
 | Node | CPU | RAM | Storage | PVE | QEMU | pve-microvm |
 |---|---|---|---|---|---|---|
 | z83ii | Atom x5-Z8350 @ 1.44 GHz | 2 GB | LVM-thin | 9.1.7 | 10.1.2 | v0.3.0 |
-| borg | i7-12700 @ 4.9 GHz, 20 cores | 128 GB | LVM-thin | 9.1.7 | 10.1.2 | v0.3.0 |
+| borg | i7-12700 @ 4.9 GHz, 20 cores | 125 GB | LVM-thin | 9.1.7 | 10.1.2 | v0.3.0 |
 
 ## Legend
 
