@@ -163,6 +163,11 @@ qm terminal 900
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates
+- [x] GUI: microvm chip badge, info banners, options filtering
+- [x] GUI: context menu serial console + clone shortcuts
+- [x] GUI: custom icon persistence (CSS-based, purple ⚡ bolt)
+- [x] GUI: wizard auto-config (serial, agent, 256MB memory)
+- [x] GUI: dark mode support
 - [x] systemd-networkd auto-enable
 - [x] Guest agent device path fix
 
@@ -175,7 +180,7 @@ qm terminal 900
 | **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |
-| **Custom icon persistence** — ⚡ across browsers | Low | Low | Low |
+| **Custom icon persistence** — ⚡ across browsers | ✅ Done | ✅ Done | ✅ Done |
 | **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
 | **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |
 | **AArch64 guest support** — ARM64 PVE hosts | Low | Medium | High |
