@@ -145,6 +145,12 @@ qm terminal 900
 - [x] `qm shutdown` — graceful shutdown via guest agent
 - [x] Disk resize (`qm disk resize`)
 - [x] vzdump backup (stop-mode)
+- [x] Offline migration between nodes (shared storage, 2s on CIFS)
+- [x] HA support (ha-manager add/relocate, stop-migrate-start cycle)
+- [x] OSv unikernel template (2.5 MB loader, boots on q35)
+- [x] gokrazy appliance support (instructions for gok CLI)
+- [x] Firecracker rootfs compatibility (direct ext4 import)
+- [x] 13 Linux distros: Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, UBI, Photon, Azure Linux
 - [x] Snapshots (`qm snapshot`)
 - [x] Firewall integration (tap on vmbr0)
 - [x] Resource accounting (cluster resources)
@@ -170,8 +176,8 @@ qm terminal 900
 
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
-| **Migration** — test live migration | Medium | Medium | Medium |
-| **HA** — test with PVE HA manager | Medium | Medium | Medium |
+| **Migration** — test live migration | ✅ Done | ✅ Done | ✅ Done |
+| **HA** — test with PVE HA manager | ✅ Done | ✅ Done | ✅ Done |
 | **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |

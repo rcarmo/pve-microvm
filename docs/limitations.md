@@ -5,15 +5,11 @@
 No VGA, QXL, or virtio-gpu. No VNC/noVNC/SPICE. Serial console only
 (`qm terminal` or xterm.js via `vga: serial0`).
 
-## No PCI bus
+## No PCI passthrough
 
-No PCI topology — no PCI passthrough, no PCI-attached devices. Everything
-uses virtio-mmio. Max ~32 mmio devices depending on QEMU version.
-
-## No ACPI
-
-No ACPI power button. `qm shutdown` requires the guest agent.
-Use `qm stop` for force shutdown.
+The microvm machine type uses a minimal PCIe bus (`pcie=on`) for virtio
+device transport. PCI passthrough of host devices (GPUs, NICs, etc.)
+is not supported.
 
 ## No USB
 
@@ -26,20 +22,24 @@ Direct kernel boot only. No firmware, no EFI variables.
 ## Kernel required
 
 Unlike standard VMs, microvm always needs `-kernel` in `args`.
-The kernel must be on the Proxmox host filesystem.
+The kernel and initrd must be on the Proxmox host filesystem
+(installed to `/usr/share/pve-microvm/` by the package).
 
 ## No CD-ROM / ISO boot
 
-Cannot boot from ISO. Use `pve-oci-import` or prepare disk images directly.
+Cannot boot from ISO. Use `pve-microvm-template` to build from OCI images,
+or import ext4/raw disk images directly with `qm importdisk`.
 
-## Migration untested
+## No live migration
 
-Live migration has not been tested. The reduced device model may simplify
-state transfer but this is unverified.
+Live migration (`qm migrate --online`) is not supported for the microvm
+machine type. Offline migration works — HA relocate performs a
+stop→migrate→start cycle automatically (tested z83ii↔borg, ~2 seconds).
 
-## Backup (vzdump)
+## No ACPI power button
 
-Not yet validated. Guest agent fsfreeze should work if agent is installed.
+No ACPI power button. `qm shutdown` requires the guest agent.
+Use `qm stop` for force shutdown.
 
 ## Limited NICs
 
@@ -52,24 +52,18 @@ QEMU's serial chardev socket does not buffer output when no client is
 connected. Boot messages may be lost. Connect via `qm terminal` after boot
 to get an interactive shell.
 
-## Kernel config drift
+## Kernel config
 
-The Firecracker 6.1 base kernel config may silently lose drivers when
-built on newer kernel versions (e.g., 6.12). The PVE overlay forces
-critical drivers (`virtio_net`, `virtio_balloon`, `virtio_console`) to
-`=y`. Always verify the final `.config` after `make olddefconfig`.
+Uses `x86_64_defconfig` with an overlay for virtio, vsock, and virtiofs.
+The Firecracker 6.1 kernel config is NOT compatible — it has broken virtio
+device ID tables on kernel 6.12+. Always use the shipped kernel.
 
 ## 9Front / Plan 9 (experimental)
 
-9Front template support is experimental and intended as a quick way to test
-non-Linux microvms. It demonstrates the platform's ability to host alternative
-operating systems before tackling specialist microkernels such as:
+Uses q35 (not microvm machine type) since Plan 9 boots from disk via BIOS.
+Serial console requires `console=0` at boot or editing `plan9.ini`.
 
-- **PikeOS** / **QNX** — safety-certified RTOS for telco and automotive
-- **seL4** — formally verified microkernel
-- **Zephyr** — real-time OS for embedded and edge
-- **Unikraft** — unikernel framework for single-application VMs
+## OSv (experimental)
 
-9Front uses q35 (not microvm machine type) since Plan 9 boots from disk
-via BIOS. The serial console requires typing `console=0` at the boot prompt
-or editing `plan9.ini` inside the guest.
+Uses q35 with `-kernel` boot. The loader image needs a separate application
+image (built with `capstan` or `ops`) attached as a disk.

@@ -15,7 +15,7 @@ as a reliable fallback. DHCP works instantly via dhclient.
 
 ## Guest agent startup delay
 
-The guest agent takes 30-120 seconds to start on slow hardware.
+The guest agent takes 30-120 seconds to start on slow hardware (e.g. z83ii).
 The systemd override uses `Restart=always` with `RestartSec=5`.
 `qm agent <vmid> ping` succeeds once the agent connects to `/dev/vport1p1`.
 
@@ -30,9 +30,22 @@ events that devtmpfs from initrd doesn't generate.
 QEMU's serial chardev socket doesn't buffer when no client is connected.
 Boot messages may be lost. Connect via `qm terminal` or the web UI Console.
 
-## VM shutdown state
+## PCI: Fatal: No config space access function found
 
-After `qm shutdown`, QEMU stays alive in "shutdown" state due to
-`-no-shutdown`. The PVE web UI may show the VM as stopped but the process
-persists. Use `qm stop` to fully terminate, or `qm start` will restart cleanly.
-EOF
+Harmless warning from the microvm boot. The guest kernel tries standard
+PCI config space probing before the PCIe ECAM from microvm is initialized.
+Does not affect device functionality — all virtio devices bind correctly.
+
+## Cloud-init Perl warning
+
+```
+Use of uninitialized value in split at /usr/share/perl5/PVE/QemuServer/Cloudinit.pm line 115.
+```
+
+Harmless PVE warning when generating cloud-init ISO for microvms.
+Cloud-init data is injected correctly despite the warning.
+
+## HA relocate (not live)
+
+HA relocate works but performs stop→migrate→start (not live migration).
+Expect 2-10 seconds of downtime during relocate depending on hardware.
