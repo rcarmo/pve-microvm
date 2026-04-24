@@ -160,8 +160,6 @@ qm terminal 900
 - [x] Alpine template support (apk-based chroot)
 - [x] Template profiles (minimal/standard/full, --no-docker, --no-ssh, --no-agent)
 - [x] [Plan 9 / 9Front](docs/limitations.md#9front--plan-9-experimental) template (experimental — non-Linux microvm proof-of-concept)
-- [x] OSv unikernel template (2.5 MB loader, boots on q35)
-- [x] gokrazy appliance support (instructions for gok CLI)
 - [x] Performance benchmarking (`pve-microvm-bench`)
 - [x] GUI: conditional panel hiding (wizard + hardware view)
 - [x] GUI: one-click clone from microvm templates
@@ -172,20 +170,16 @@ qm terminal 900
 
 | Feature | Priority | Impact | Effort |
 |---|---|---|---|
-| **Template profiles** — implemented: --profile minimal/standard/full | Medium | High | Low |
-
 | **Network off by default** — boot without network unless enabled | Medium | Medium | Low |
 | **Egress allow-list** — restrict outbound to specific hosts | Medium | Medium | Medium |
-| **Migration** — test live migration | ✅ Done | ✅ Done | ✅ Done |
-| **HA** — test with PVE HA manager | ✅ Done | ✅ Done | ✅ Done |
 | **9p filesystem sharing** — alternative to virtiofs | Low | Medium | Medium |
 | **CPU/memory hotplug** — dynamic scaling | Low | Medium | Medium |
 | **Multiple kernel management** — ship/manage versions | Low | Low | Low |
 | **Custom icon persistence** — ⚡ across browsers | Low | Low | Low |
-| **Upstream proposal** — RFC for Proxmox pve-devel | Low | High | High |
 | **Declarative VM config** — Smolfile-style TOML | Low | Medium | Medium |
 | **GPU passthrough** — virtio-gpu exploratory | Low | Medium | High |
 | **AArch64 guest support** — ARM64 PVE hosts | Low | Medium | High |
+| **Upstream proposal** — RFC for Proxmox pve-devel | Low | High | High |
 
 ---
 
