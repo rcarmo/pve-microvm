@@ -226,7 +226,8 @@ sub microvm_config_to_command {
     #   ZFS         → /dev/zvol/<pool>/vm-<vmid>-disk-0       (raw block)
     #   Ceph/RBD    → rbd:<pool>/vm-<vmid>-disk-0             (librbd)
     #   NFS/CIFS    → /mnt/pve/<store>/images/<vmid>/...      (file)
-    for my $ds (sort grep { /^(scsi|virtio|ide|sata|efidisk|tpmstate)\d+$/ } keys %$conf) {
+    for my $ds (sort { ($a =~ /scsi0/) ? -1 : ($b =~ /scsi0/) ? 1 : $a cmp $b }
+                grep { /^(scsi|virtio|ide|sata)\d+$/ } keys %$conf) {
         next if !$conf->{$ds};
         next if $ds =~ m/^(efidisk|tpmstate)/;
 
@@ -235,10 +236,9 @@ sub microvm_config_to_command {
 
         my $volid = $drive->{file};
         next if !$volid;
-        next if PVE::QemuServer::Drive::drive_is_cdrom($drive); # skip cdroms
-        next if eval { PVE::QemuServer::Drive::drive_is_cloudinit($drive) }; # skip cloud-init
-        next if ($drive->{media} && $drive->{media} eq 'cdrom'); # fallback cdrom check
-        next if ($volid =~ /cloudinit/); # fallback cloud-init check
+        # Cloud-init and other cdroms are included as virtio-blk
+        # (cloud-init reads its config from this device)
+        # Drive order is guaranteed by the sort above: scsi0 first = /dev/vda
 
         my ($path, $format);
         my $is_rbd = 0;
