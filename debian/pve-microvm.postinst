@@ -4,6 +4,8 @@ set -e
 
 case "$1" in
     configure)
+        # Always revert and reapply to pick up new MicroVM.pm on upgrade
+        /usr/share/pve-microvm/pve-microvm-patch revert 2>/dev/null || true
         /usr/share/pve-microvm/pve-microvm-patch apply
         ;;
     triggered)
