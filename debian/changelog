@@ -1,3 +1,13 @@
+pve-microvm (0.3.2-1) trixie; urgency=high
+
+  * Fix: drive loop used valid_drive_names() which returns 0 at runtime
+    on qemu-server 9.1.6. Now iterates conf keys instead.
+  * Fix: drive_is_cdrom($drive,1) excluded cloud-init from detection.
+    Cloud-init ISO now correctly skipped from virtio-blk devices.
+  * Fix: root disk is /dev/vda, cloud-init not mounted as block device.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 25 Apr 2026 15:30:00 +0000
+
 pve-microvm (0.3.1-1) trixie; urgency=medium
 
   * Fix cloud-init drive order bug on qemu-server < 9.1.8
