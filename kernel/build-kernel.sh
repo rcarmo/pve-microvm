@@ -148,15 +148,49 @@ for mod in /lib/modules/virtio.ko* /lib/modules/virtio_ring.ko* \
     [ -f "$mod" ] && insmod "$mod" 2>/dev/null
 done
 
-# Wait for root device to appear (modules need a moment)
-for i in 1 2 3 4 5 6 7 8 9 10; do
-    [ -b /dev/vda ] && break
-    sleep 0.2
+# Parse root= from kernel command line
+ROOT_DEV=""
+for param in $(cat /proc/cmdline); do
+    case "$param" in
+        root=LABEL=*)
+            LABEL="${param#root=LABEL=}"
+            # Wait for labelled device to appear
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                ROOT_DEV=$(findfs LABEL="$LABEL" 2>/dev/null) && break
+                # Fallback: scan /dev/vd* for the label
+                for dev in /dev/vda /dev/vdb /dev/vdc /dev/vdd; do
+                    [ -b "$dev" ] || continue
+                    if blkid "$dev" 2>/dev/null | grep -q "LABEL=\"$LABEL\""; then
+                        ROOT_DEV="$dev"
+                        break 2
+                    fi
+                done
+                sleep 0.2
+            done
+            ;;
+        root=/dev/*)
+            ROOT_DEV="${param#root=}"
+            # Wait for the device
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                [ -b "$ROOT_DEV" ] && break
+                sleep 0.2
+            done
+            ;;
+    esac
 done
 
+# Fallback: try /dev/vda if nothing parsed
+if [ -z "$ROOT_DEV" ]; then
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        [ -b /dev/vda ] && break
+        sleep 0.2
+    done
+    ROOT_DEV=/dev/vda
+fi
+
 # Mount and switch to real root
-if [ -b /dev/vda ]; then
-    mount -t ext4 /dev/vda /mnt 2>/dev/null || mount /dev/vda /mnt 2>/dev/null
+if [ -b "$ROOT_DEV" ]; then
+    mount -t ext4 "$ROOT_DEV" /mnt 2>/dev/null || mount "$ROOT_DEV" /mnt 2>/dev/null
     if [ -x /mnt/sbin/init ] || [ -L /mnt/sbin/init ]; then
         # Mount essential filesystems in new root BEFORE switch_root
         mount -t devtmpfs devtmpfs /mnt/dev 2>/dev/null
@@ -172,7 +206,7 @@ if [ -b /dev/vda ]; then
 fi
 
 # Fallback: drop to shell
-echo "pve-microvm: root mount failed, dropping to shell"
+echo "pve-microvm: root mount failed (tried $ROOT_DEV), dropping to shell"
 exec /bin/sh
 INITSCRIPT
 chmod 755 "$INITRD_DIR/init"
@@ -198,7 +232,7 @@ fi
 if [ -n "$BUSYBOX" ] && [ -f "$BUSYBOX" ]; then
     cp "$BUSYBOX" "$INITRD_DIR/bin/busybox" 2>/dev/null || true
     chmod 755 "$INITRD_DIR/bin/busybox"
-    for cmd in sh mount umount insmod modprobe switch_root sleep grep dmesg cat ls ip; do
+    for cmd in sh mount umount insmod modprobe switch_root sleep grep dmesg cat ls ip blkid findfs; do
         ln -sf busybox "$INITRD_DIR/bin/$cmd"
     done
 else

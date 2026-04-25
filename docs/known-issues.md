@@ -51,3 +51,22 @@ Cloud-init data is injected correctly despite the warning.
 
 HA relocate works but performs stop→migrate→start (not live migration).
 Expect 2-10 seconds of downtime during relocate depending on hardware.
+
+## Cloud-init drive displaces root device (FIXED in v0.3.1)
+
+On `qemu-server` < 9.1.8, the cloud-init ISO (`scsi1`, `media=cdrom`)
+could appear as `/dev/vda`, displacing the root disk to `/dev/vdb`.
+With `root=/dev/vda` in the kernel args, the guest fails to mount root.
+
+**Root cause**: Two issues combined:
+1. `is_microvm()` relied on `Machine::parse_machine()` which could fail
+   on older qemu-server versions, causing the standard code path to run
+2. The standard code path doesn't skip cdrom drives from virtio-blk
+3. Drive iteration order is not guaranteed
+
+**Fix** (v0.3.1):
+1. `is_microvm()` falls back to raw string match if parse fails
+2. Drive iteration is now sorted (scsi0 always before scsi1)
+3. Root filesystem uses `LABEL=microvm-root` instead of `/dev/vda`
+4. Initrd parses `root=LABEL=...` from kernel cmdline and finds the
+   device by label, independent of enumeration order

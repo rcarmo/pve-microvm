@@ -49,9 +49,13 @@ Returns true if the VM configuration uses the microvm machine type.
 
 sub is_microvm {
     my ($conf) = @_;
-    my $machine_conf = PVE::QemuServer::Machine::parse_machine($conf->{machine});
-    return 0 if !$machine_conf || !$machine_conf->{type};
-    return $machine_conf->{type} =~ m/^microvm/ ? 1 : 0;
+    # Primary: use Machine.pm parser
+    my $machine_conf = eval { PVE::QemuServer::Machine::parse_machine($conf->{machine}) };
+    if ($machine_conf && $machine_conf->{type}) {
+        return $machine_conf->{type} =~ m/^microvm/ ? 1 : 0;
+    }
+    # Fallback: raw string match (survives parse_machine failures on older qemu-server)
+    return ($conf->{machine} || '') =~ m/^microvm/ ? 1 : 0;
 }
 
 =head2 microvm_validate_config($conf)
@@ -222,7 +226,7 @@ sub microvm_config_to_command {
     #   ZFS         → /dev/zvol/<pool>/vm-<vmid>-disk-0       (raw block)
     #   Ceph/RBD    → rbd:<pool>/vm-<vmid>-disk-0             (librbd)
     #   NFS/CIFS    → /mnt/pve/<store>/images/<vmid>/...      (file)
-    for my $ds (PVE::QemuServer::Drive::valid_drive_names()) {
+    for my $ds (sort PVE::QemuServer::Drive::valid_drive_names()) {
         next if !$conf->{$ds};
         next if $ds =~ m/^(efidisk|tpmstate)/;
 
@@ -373,7 +377,7 @@ sub microvm_config_to_command {
     # ── Kernel / initrd / cmdline ────────────────────────────────
     # Passed through from the args config option.
     # Expected format:
-    #   args: -kernel /path/to/vmlinuz -append "console=ttyS0 root=/dev/vda rw" [-initrd /path/to/initrd]
+    #   args: -kernel /path/to/vmlinuz -append "console=ttyS0 root=LABEL=microvm-root rw" [-initrd /path/to/initrd]
     # Must handle quoted strings properly (e.g. -append "..." is one argument).
     if ($conf->{args}) {
         my $args_str = $conf->{args};
@@ -413,7 +417,7 @@ Create a microvm guest:
   qm create 900 --machine microvm --memory 256 --cores 1 \
     --net0 virtio,bridge=vmbr0 \
     --scsi0 local-lvm:8 \
-    --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=/dev/vda rw"'
+    --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=LABEL=microvm-root rw"'
 
   qm start 900
   qm terminal 900

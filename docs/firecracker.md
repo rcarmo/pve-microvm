@@ -30,7 +30,7 @@ qm set 900 --scsi0 local-lvm:vm-900-disk-0
 # Set kernel args (use OUR kernel, not Firecracker's vmlinux)
 qm set 900 --args '-kernel /usr/share/pve-microvm/vmlinuz \
   -initrd /usr/share/pve-microvm/initrd \
-  -append "console=ttyS0 root=/dev/vda rw"'
+  -append "console=ttyS0 root=LABEL=microvm-root rw"'
 
 # Boot
 qm start 900

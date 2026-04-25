@@ -193,7 +193,7 @@ if [ "$CONFIGURE" -eq 1 ]; then
         fi
     fi
 
-    KERNEL_ARGS="console=ttyS0 root=/dev/vda rw init=$INIT_PATH panic=1 quiet"
+    KERNEL_ARGS="console=ttyS0 root=LABEL=microvm-root rw init=$INIT_PATH panic=1 quiet"
 
     qm set "$VMID" \
         --machine microvm \
