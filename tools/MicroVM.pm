@@ -226,7 +226,7 @@ sub microvm_config_to_command {
     #   ZFS         → /dev/zvol/<pool>/vm-<vmid>-disk-0       (raw block)
     #   Ceph/RBD    → rbd:<pool>/vm-<vmid>-disk-0             (librbd)
     #   NFS/CIFS    → /mnt/pve/<store>/images/<vmid>/...      (file)
-    for my $ds (sort PVE::QemuServer::Drive::valid_drive_names()) {
+    for my $ds (sort grep { /^(scsi|virtio|ide|sata|efidisk|tpmstate)\d+$/ } keys %$conf) {
         next if !$conf->{$ds};
         next if $ds =~ m/^(efidisk|tpmstate)/;
 
@@ -235,7 +235,10 @@ sub microvm_config_to_command {
 
         my $volid = $drive->{file};
         next if !$volid;
-        next if PVE::QemuServer::Drive::drive_is_cdrom($drive, 1);
+        next if PVE::QemuServer::Drive::drive_is_cdrom($drive); # skip cdroms
+        next if eval { PVE::QemuServer::Drive::drive_is_cloudinit($drive) }; # skip cloud-init
+        next if ($drive->{media} && $drive->{media} eq 'cdrom'); # fallback cdrom check
+        next if ($volid =~ /cloudinit/); # fallback cloud-init check
 
         my ($path, $format);
         my $is_rbd = 0;
@@ -295,7 +298,7 @@ sub microvm_config_to_command {
             $drive_cmd .= ",aio=$aio";
         }
 
-        $drive_cmd .= ",detect-zeroes=on" if !PVE::QemuServer::Drive::drive_is_cdrom($drive, 1);
+        $drive_cmd .= ",detect-zeroes=on";
 
         # Throttling
         foreach my $type (['', '-total'], [_rd => '-read'], [_wr => '-write']) {
