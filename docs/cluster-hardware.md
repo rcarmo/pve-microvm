@@ -1,6 +1,6 @@
 # Cluster Hardware
 
-pve-microvm v0.3.0 is deployed and tested across a 4-node Proxmox VE cluster.
+pve-microvm v0.3.3 is deployed and tested across a 4-node Proxmox VE cluster.
 
 ## Nodes
 

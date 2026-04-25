@@ -46,7 +46,7 @@ else
     KERNEL="/boot/vmlinuz-$(uname -r)"
     INITRD="/boot/initrd.img-$(uname -r)"
 fi
-APPEND="console=ttyS0 root=LABEL=microvm-root rw quiet"
+APPEND="console=ttyS0 root=/dev/vda rw quiet"
 
 log() { echo "[$PROG] $*"; }
 die() { echo "[$PROG] ERROR: $*" >&2; exit 1; }

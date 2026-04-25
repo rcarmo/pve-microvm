@@ -318,7 +318,7 @@ qm importdisk 900 /path/to/firecracker-rootfs.ext4 local-lvm
 qm set 900 --scsi0 local-lvm:vm-900-disk-0
 qm set 900 --args '-kernel /usr/share/pve-microvm/vmlinuz \
   -initrd /usr/share/pve-microvm/initrd \
-  -append "console=ttyS0 root=LABEL=microvm-root rw"'
+  -append "console=ttyS0 root=/dev/vda rw"'
 ```
 
 You use our kernel (not Firecracker's vmlinux) but the rootfs is

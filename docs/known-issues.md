@@ -52,21 +52,22 @@ Cloud-init data is injected correctly despite the warning.
 HA relocate works but performs stop→migrate→start (not live migration).
 Expect 2-10 seconds of downtime during relocate depending on hardware.
 
-## Cloud-init drive displaces root device (FIXED in v0.3.1)
+## Cloud-init drive order (FIXED in v0.3.3)
 
-On `qemu-server` < 9.1.8, the cloud-init ISO (`scsi1`, `media=cdrom`)
-could appear as `/dev/vda`, displacing the root disk to `/dev/vdb`.
-With `root=/dev/vda` in the kernel args, the guest fails to mount root.
+On `qemu-server` < 9.1.8, the cloud-init ISO (`scsi1`) could appear as
+`/dev/vda` before the root disk, breaking `root=/dev/vda` in the kernel
+args.
 
-**Root cause**: Two issues combined:
-1. `is_microvm()` relied on `Machine::parse_machine()` which could fail
-   on older qemu-server versions, causing the standard code path to run
-2. The standard code path doesn't skip cdrom drives from virtio-blk
-3. Drive iteration order is not guaranteed
+**Root cause**: Three issues combined:
+1. `PVE::QemuServer::Drive::valid_drive_names()` returns 0 items at
+   runtime inside `config_to_command` on qemu-server 9.1.6
+2. `is_microvm()` relied on `Machine::parse_machine()` which could fail
+   on older qemu-server versions
+3. Drive iteration order was not guaranteed
 
-**Fix** (v0.3.1):
+**Fix** (v0.3.3):
 1. `is_microvm()` falls back to raw string match if parse fails
-2. Drive iteration is now sorted (scsi0 always before scsi1)
-3. Root filesystem uses `LABEL=microvm-root` instead of `/dev/vda`
-4. Initrd parses `root=LABEL=...` from kernel cmdline and finds the
-   device by label, independent of enumeration order
+2. Drive loop iterates `keys %$conf` (not `valid_drive_names()`)
+3. Sort guarantees scsi0 is always emitted first (`/dev/vda` = root)
+4. Cloud-init ISO included as `/dev/vdb` (needed for config delivery)
+5. Root filesystem labelled `microvm-root` for future LABEL= boot

@@ -51,7 +51,7 @@ These options are **automatically hidden** in the PVE web UI when
 
 ```ini
 agent: 1
-args: -kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=LABEL=microvm-root rw quiet"
+args: -kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=/dev/vda rw quiet"
 ciuser: root
 cores: 2
 ipconfig0: ip=dhcp

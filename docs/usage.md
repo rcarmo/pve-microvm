@@ -22,7 +22,7 @@ qm create <vmid> \
   --serial0 socket \
   --vga serial0 \
   --agent 1 \
-  --args '-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=LABEL=microvm-root rw quiet"'
+  --args '-kernel /usr/share/pve-microvm/vmlinuz -initrd /usr/share/pve-microvm/initrd -append "console=ttyS0 root=/dev/vda rw quiet"'
 ```
 
 ## Using templates (recommended)

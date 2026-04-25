@@ -15,7 +15,7 @@ Common: `bios`, `efidisk0`, `usb0`, `hostpci0`.
 Specify a kernel via `--args`:
 
 ```bash
-qm set <vmid> --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=LABEL=microvm-root rw"'
+qm set <vmid> --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=/dev/vda rw"'
 ```
 
 ## No console output
@@ -28,7 +28,7 @@ qm set <vmid> --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=tt
 ## Kernel panic: "No working init found"
 
 1. Verify the rootfs has `/sbin/init` (or use `init=/sbin/microvm-init` in append)
-2. Verify root device: `root=LABEL=microvm-root` (default) or `root=/dev/vda` for unlabelled disks
+2. Verify root device: `root=/dev/vda` matches the actual root disk
 3. Verify ext4 is compiled into the kernel (not as a module)
 4. Debug: add `rdinit=/bin/sh` to kernel append to get a pre-init shell
 

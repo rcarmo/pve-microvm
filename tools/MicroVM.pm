@@ -380,7 +380,7 @@ sub microvm_config_to_command {
     # ── Kernel / initrd / cmdline ────────────────────────────────
     # Passed through from the args config option.
     # Expected format:
-    #   args: -kernel /path/to/vmlinuz -append "console=ttyS0 root=LABEL=microvm-root rw" [-initrd /path/to/initrd]
+    #   args: -kernel /path/to/vmlinuz -append "console=ttyS0 root=/dev/vda rw" [-initrd /path/to/initrd]
     # Must handle quoted strings properly (e.g. -append "..." is one argument).
     if ($conf->{args}) {
         my $args_str = $conf->{args};
@@ -420,7 +420,7 @@ Create a microvm guest:
   qm create 900 --machine microvm --memory 256 --cores 1 \
     --net0 virtio,bridge=vmbr0 \
     --scsi0 local-lvm:8 \
-    --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=LABEL=microvm-root rw"'
+    --args '-kernel /usr/share/pve-microvm/vmlinuz -append "console=ttyS0 root=/dev/vda rw"'
 
   qm start 900
   qm terminal 900
