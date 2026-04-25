@@ -1,22 +1,25 @@
-# pve-microvm v0.3.0
+# pve-microvm v0.3.1
 
-Major release: 37 features, 13 Linux distros, 4 non-Linux OS, Firecracker compatibility.
+Bugfix release: cloud-init drive ordering, UI overhaul, 9p support.
 
-## Highlights
+## Bug fixes
 
-- **13 Linux distributions** tested: Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, Red Hat UBI, VMware Photon, Microsoft Azure Linux
-- **Non-Linux guests**: 9Front (Plan 9), OSv (unikernel), gokrazy (Go appliance)
-- **Firecracker rootfs compatibility** — import directly
-- **Template profiles**: `--profile minimal|standard|full`, `--no-docker`, `--no-ssh`, `--no-agent`
-- **5 package managers**: apt, apk, dnf/microdnf, tdnf, yum
-- **Ephemeral VMs**: `pve-microvm-run -- command` (auto-cleanup)
-- **virtiofs + vsock**: host dir sharing, SSH agent forwarding
-- **GUI**: panel hiding, one-click clone, ⚡ icon
-- **All PVE storage types**: LVM, LVM-thin, ZFS, dir, NFS, CIFS
+- **Cloud-init drive order** — on qemu-server < 9.1.8, the cloud-init ISO
+  could displace the root disk. Fixed with three layers: is_microvm()
+  fallback, sorted drive iteration, and LABEL=microvm-root root device.
+- **dpkg trigger loop** — `interest-noawait` prevents upgrade hangs.
+- **Hardware view Remove button** — CSS hiding instead of store.filterBy.
 
-## Upgrade
+## New features
 
-```bash
-curl -sL https://github.com/rcarmo/pve-microvm/releases/download/v0.3.0/pve-microvm_0.3.0-1_all.deb -o /tmp/pve-microvm.deb
-dpkg -i /tmp/pve-microvm.deb
-```
+- **Create µVM dialog** — OCI image picker with 12 distros, profiles, storage selector
+- **Console tab** — xterm.js with ⚡ bolt icon for microvm VMs
+- **Console button** — forces xterm.js (serial) instead of noVNC
+- **9p filesystem sharing** — `pve-microvm-9p` tool, no daemon needed
+- **Amber ⚡ icon** — all microvm UI elements use amber/orange
+
+## Docs
+
+- Full audit: FAQ, usage, test matrix, all aligned
+- Firecracker VMM (was incorrectly listed as libkrun)
+- Template options: --profile, --no-docker, --no-ssh, --no-agent documented

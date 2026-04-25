@@ -1,3 +1,21 @@
+pve-microvm (0.3.1-1) trixie; urgency=medium
+
+  * Fix cloud-init drive order bug on qemu-server < 9.1.8
+  * is_microvm() fallback for older qemu-server versions
+  * Sorted drive iteration (scsi0 always first)
+  * Root filesystem uses LABEL=microvm-root instead of /dev/vda
+  * Initrd: label-based root device discovery (findfs/blkid)
+  * Create µVM dialog with OCI image picker
+  * Console tab: xterm.js with bolt icon for microvm
+  * Console button: forces xterm.js for microvm VMs
+  * Hardware view: CSS hiding (fixes Remove button)
+  * Amber bolt icon (was purple)
+  * 9p filesystem sharing tool (pve-microvm-9p)
+  * dpkg trigger: interest-noawait (fixes upgrade loop)
+  * Docs: full audit and alignment with test matrix
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 25 Apr 2026 14:00:00 +0000
+
 pve-microvm (0.3.0-1) trixie; urgency=medium
 
   * Major release: 37 features shipped.
