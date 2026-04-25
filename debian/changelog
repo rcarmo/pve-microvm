@@ -1,3 +1,11 @@
+pve-microvm (0.3.3-1) trixie; urgency=high
+
+  * Fix: include cloud-init drive as virtio-blk (was incorrectly skipped).
+  * Fix: sort scsi0 first in drive enumeration (root=/dev/vda guaranteed).
+  * Cloud-init ISO now correctly at /dev/vdb on all qemu-server versions.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 25 Apr 2026 16:00:00 +0000
+
 pve-microvm (0.3.2-1) trixie; urgency=high
 
   * Fix: drive loop used valid_drive_names() which returns 0 at runtime
