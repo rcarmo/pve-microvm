@@ -431,7 +431,7 @@ umoci unpack --image "$OCI_DIR:latest" "$BUNDLE_DIR" >/dev/null 2>&1
 
 # Step 3: Prepare for microvm boot
 log "Preparing rootfs..."
-for dir in proc sys dev dev/pts run tmp; do
+for dir in proc sys dev dev/pts run tmp sbin usr/local/bin usr/sbin; do
     mkdir -p "$ROOTFS_DIR/$dir"
 done
 
@@ -447,6 +447,7 @@ if [ -d "$ROOTFS_DIR/lib/systemd/system" ] && [ -f "$ROOTFS_DIR/lib/systemd/syst
 
 elif [ -f "$ROOTFS_DIR/bin/busybox" ]; then
     log "busybox detected — configuring inittab for ttyS0"
+    mkdir -p "$ROOTFS_DIR/sbin"
     [ -f "$ROOTFS_DIR/sbin/init" ] || ln -sf ../bin/busybox "$ROOTFS_DIR/sbin/init"
     cat > "$ROOTFS_DIR/etc/inittab" <<'INITTAB'
 ::sysinit:/bin/mount -t proc proc /proc
