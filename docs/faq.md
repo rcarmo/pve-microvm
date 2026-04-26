@@ -42,6 +42,8 @@ package installation entirely and use the image as-is with our
 | `9front` | Plan 9 | Boots via q35/BIOS, experimental |
 | `osv` | Unikernel | ELF loader via q35, needs app image |
 | `gokrazy` | Go appliance | Prints `gok` CLI build instructions |
+| `openwrt` | Router OS | x86-64, 13 MB, q35 boot, serial console |
+| `opnsense` | Firewall (FreeBSD) | 500 MB, q35 boot, >= 1 GB RAM |
 | Firecracker rootfs | ext4 | Direct import via `qm importdisk` |
 
 See [Firecracker Compatibility](firecracker.md) for details on importing

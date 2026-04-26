@@ -322,6 +322,8 @@ pve-microvm-template --image gokrazy --vmid 9004
 | 9Front | Plan 9 OS | `--image 9front` | Pre-built qcow2, q35 boot |
 | OSv | Unikernel | `--image osv` | ELF kernel, needs app image |
 | gokrazy | Go appliance | `--image gokrazy` | Instructions only, needs `gok` |
+| OpenWrt | Router OS | `--image openwrt` | x86-64 combined image, q35 boot |
+| OPNsense | Firewall (FreeBSD) | `--image opnsense` | Serial image, q35 boot, >= 1 GB RAM |
 
 ## High Availability
 

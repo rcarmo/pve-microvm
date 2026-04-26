@@ -317,6 +317,104 @@ if echo "$IMAGE" | grep -qi '^gokrazy'; then
     exit 0
 fi
 
+# ── OpenWrt ──────────────────────────────────────────────────────
+if echo "$IMAGE" | grep -qi '^openwrt'; then
+    log "OpenWrt detected — downloading x86-64 combined image"
+    OPENWRT_VER="25.12.2"
+    OPENWRT_URL="https://downloads.openwrt.org/releases/${OPENWRT_VER}/targets/x86/64/openwrt-${OPENWRT_VER}-x86-64-generic-ext4-combined.img.gz"
+    OPENWRT_GZ="$WORKDIR/openwrt.img.gz"
+    OPENWRT_IMG="$WORKDIR/openwrt.img"
+
+    log "Downloading OpenWrt $OPENWRT_VER (13 MB compressed)..."
+    curl -sL "$OPENWRT_URL" -o "$OPENWRT_GZ" || die "download failed"
+    gunzip "$OPENWRT_GZ" || die "decompress failed"
+
+    log "Creating OpenWrt template VM $TEMPLATE_VMID..."
+    qm create "$TEMPLATE_VMID" \
+        --machine q35 \
+        --memory "${MEMORY:-256}" \
+        --cores "${CORES:-1}" \
+        --name "${TEMPLATE_NAME:-microvm-openwrt}" \
+        --serial0 socket --vga serial0 \
+        --net0 virtio,bridge=vmbr0 \
+        --tags "$TAGS,openwrt" 2>&1 || die "qm create failed"
+
+    log "Importing disk..."
+    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" "$OPENWRT_IMG" "$STORAGE" 2>&1)
+    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\K[^']+")
+    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
+
+    qm set "$TEMPLATE_VMID" --ide0 "$VOLID" --boot order=ide0 2>&1
+
+    log "Converting to template..."
+    qm template "$TEMPLATE_VMID" 2>&1
+
+    log "=== Template ready ==="
+    log ""
+    log "Clone a new OpenWrt instance:"
+    log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-openwrt --full"
+    log ""
+    log "Start and connect:"
+    log "  qm start <new-vmid>"
+    log "  qm terminal <new-vmid>"
+    log ""
+    log "Press Enter at the console to activate the shell."
+    log "Default LAN: 192.168.1.1 — configure via UCI or LuCI."
+    cleanup
+    exit 0
+fi
+
+# ── OPNsense ─────────────────────────────────────────────────────
+if echo "$IMAGE" | grep -qi '^opnsense'; then
+    log "OPNsense detected — downloading serial image"
+    OPNSENSE_VER="25.1"
+    OPNSENSE_MIRROR="https://mirror.ams1.nl.leaseweb.net/opnsense/releases/${OPNSENSE_VER}"
+    OPNSENSE_FILE="OPNsense-${OPNSENSE_VER}-serial-amd64.img.bz2"
+    OPNSENSE_BZ2="$WORKDIR/opnsense.img.bz2"
+    OPNSENSE_IMG="$WORKDIR/opnsense.img"
+
+    log "Downloading OPNsense $OPNSENSE_VER (~500 MB compressed)..."
+    log "This may take several minutes."
+    curl -sL "${OPNSENSE_MIRROR}/${OPNSENSE_FILE}" -o "$OPNSENSE_BZ2" || die "download failed"
+    log "Decompressing (~2.5 GB)..."
+    bunzip2 "$OPNSENSE_BZ2" || die "decompress failed"
+
+    log "Creating OPNsense template VM $TEMPLATE_VMID..."
+    qm create "$TEMPLATE_VMID" \
+        --machine q35 \
+        --memory "${MEMORY:-1024}" \
+        --cores "${CORES:-2}" \
+        --name "${TEMPLATE_NAME:-microvm-opnsense}" \
+        --serial0 socket --vga serial0 \
+        --net0 virtio,bridge=vmbr0 \
+        --tags "$TAGS,opnsense,freebsd" 2>&1 || die "qm create failed"
+
+    log "Importing disk (2.5 GB)..."
+    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" "$OPNSENSE_IMG" "$STORAGE" 2>&1)
+    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\K[^']+")
+    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
+
+    qm set "$TEMPLATE_VMID" --ide0 "$VOLID" --boot order=ide0 2>&1
+
+    log "Converting to template..."
+    qm template "$TEMPLATE_VMID" 2>&1
+
+    log "=== Template ready ==="
+    log ""
+    log "Clone a new OPNsense instance:"
+    log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-opnsense --full"
+    log ""
+    log "Start and connect (needs >= 1 GB RAM):"
+    log "  qm set <new-vmid> --memory 1024"
+    log "  qm start <new-vmid>"
+    log "  qm terminal <new-vmid>"
+    log ""
+    log "Default credentials: root / opnsense"
+    log "Web UI: https://<LAN-IP>/"
+    cleanup
+    exit 0
+fi
+
 OCI_DIR="$WORKDIR/oci"
 BUNDLE_DIR="$WORKDIR/bundle"
 ROOTFS_DIR="$BUNDLE_DIR/rootfs"

@@ -581,6 +581,10 @@
             ['redhat/ubi9-micro', 'Red Hat UBI 9 Micro (6 MB)'],
             ['photon:5.0', 'VMware Photon 5.0 (15 MB)'],
             ['mcr.microsoft.com/azurelinux/base/core:3.0', 'Azure Linux 3.0 (30 MB)'],
+            ['openwrt', 'OpenWrt 25.12.2 (13 MB, router OS, q35)'],
+            ['opnsense', 'OPNsense 25.1 (500 MB, FreeBSD firewall, q35)'],
+            ['9front', '9Front / Plan 9 (239 MB, q35)'],
+            ['osv', 'OSv unikernel (2.5 MB, q35)'],
         ];
 
         var PROFILES = [
