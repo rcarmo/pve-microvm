@@ -1,3 +1,13 @@
+pve-microvm (0.3.4-1) trixie; urgency=medium
+
+  * Add OpenWrt 25.12.2 template (13 MB, q35/BIOS, router OS)
+  * Add OPNsense 25.1 template (FreeBSD, 500 MB, q35/BIOS, firewall)
+  * Fix postinst: always revert+reapply on upgrade
+  * UI: OpenWrt, OPNsense, 9Front, OSv in Create µVM dialog
+  * 49 shipped features, 18 guest OS types
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 26 Apr 2026 13:10:00 +0000
+
 pve-microvm (0.3.3-1) trixie; urgency=high
 
   * Fix: include cloud-init drive as virtio-blk (was incorrectly skipped).
