@@ -31,6 +31,8 @@ all node specs.
 | `osv` | Unikernel | 2.5 MB | ✅ | ✅ | — |
 | `gokrazy` | Go appliance | varies | instructions | — | — |
 | Firecracker rootfs | ext4 | varies | `qm importdisk` | ✅ (compat) | — |
+| `openwrt` | Router OS | 13 MB | ✅ | ✅ | — |
+| `opnsense` | Firewall (FreeBSD) | 500 MB | ✅ | — | ✅ |
 
 ## Features
 

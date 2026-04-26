@@ -401,3 +401,42 @@ pve-microvm-9p 900 --clear             # remove all shares
 > **Note**: 9p requires the microvm kernel to include `CONFIG_9P_FS=y`.
 > This is included in the kernel overlay config but requires a kernel
 > rebuild to take effect. The next release kernel will include 9p support.
+
+## OpenWrt templates
+
+OpenWrt runs as a q35 guest (boots from disk via BIOS, not microvm):
+
+```bash
+pve-microvm-template --image openwrt --vmid 9005 --name microvm-openwrt
+```
+
+Downloads the OpenWrt x86-64 combined image (~13 MB compressed) and creates
+a template. Boots with its own kernel, serial console active by default.
+
+OpenWrt features:
+- ~120 MB disk image, boots in ~5 seconds
+- Full firewall/routing stack (nftables, dnsmasq, opkg)
+- LuCI web interface (if network configured)
+- Serial console on ttyS0
+
+> **Note**: Uses q35 machine type (BIOS boot), not microvm.
+
+## OPNsense templates
+
+OPNsense (FreeBSD-based) runs as a q35 guest:
+
+```bash
+pve-microvm-template --image opnsense --vmid 9006 --name microvm-opnsense
+```
+
+Downloads the OPNsense serial image (~500 MB compressed) and creates
+a template. Needs at least 1 GB RAM.
+
+OPNsense features:
+- Full firewall/router OS (pf, Suricata, HAProxy, WireGuard)
+- Web UI on HTTPS
+- SSH enabled by default
+- Serial console on ttyu0
+
+> **Note**: Uses q35 machine type. FreeBSD-based — not Linux.
+> Default credentials: root / opnsense

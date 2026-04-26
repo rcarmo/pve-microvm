@@ -153,6 +153,8 @@ qm terminal 900
 - [x] OSv unikernel template (2.5 MB loader, boots on q35)
 - [x] gokrazy appliance support (instructions for gok CLI)
 - [x] Firecracker rootfs compatibility (direct ext4 import)
+- [x] OpenWrt router OS template (13 MB, boots on q35)
+- [x] OPNsense firewall template (FreeBSD-based, boots on q35)
 - [x] 13 Linux distros: Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, UBI, Photon, Azure Linux
 - [x] Snapshots (`qm snapshot`)
 - [x] Firewall integration (tap on vmbr0)
