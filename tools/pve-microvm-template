@@ -415,6 +415,66 @@ if echo "$IMAGE" | grep -qi '^opnsense'; then
     exit 0
 fi
 
+# ── SmolBSD ─────────────────────────────────────────────────────
+if echo "$IMAGE" | grep -qi '^smolbsd'; then
+    log "SmolBSD detected — building NetBSD microvm (boots in ~300ms)"
+
+    # Requirements
+    for tool in bmake bsdtar sgdisk; do
+        command -v $tool >/dev/null 2>&1 || die "$tool required (apt install bmake libarchive-tools gdisk)"
+    done
+
+    SMOLBSD_DIR="$WORKDIR/smolBSD"
+    git clone --depth 1 https://github.com/NetBSDfr/smolBSD.git "$SMOLBSD_DIR" 2>&1 | tail -n 1
+
+    log "Building SmolBSD rescue image..."
+    cd "$SMOLBSD_DIR"
+    bmake rescue ARCH=amd64 2>&1 | tail -n 3
+
+    [ -f images/rescue-amd64.img ] || die "SmolBSD build failed"
+    [ -f kernels/netbsd-SMOL ] || die "SmolBSD kernel not found"
+
+    log "Installing SmolBSD kernel..."
+    install -m 644 kernels/netbsd-SMOL /usr/share/pve-microvm/netbsd-smol
+
+    log "Creating SmolBSD template VM $TEMPLATE_VMID..."
+    qm create "$TEMPLATE_VMID" \\
+        --machine microvm \\
+        --memory "${MEMORY:-64}" \\
+        --cores "${CORES:-1}" \\
+        --name "${TEMPLATE_NAME:-microvm-smolbsd}" \\
+        --serial0 socket --vga serial0 \\
+        --net0 virtio,bridge=vmbr0 \\
+        --tags "$TAGS,smolbsd,netbsd" \\
+        --args "-kernel /usr/share/pve-microvm/netbsd-smol -append \\"console=com root=dk0\\"" 2>&1 || die "qm create failed"
+
+    log "Importing disk..."
+    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" images/rescue-amd64.img "$STORAGE" 2>&1)
+    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\\K[^']+")
+    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
+
+    qm set "$TEMPLATE_VMID" --scsi0 "$VOLID" 2>&1
+
+    log "Converting to template..."
+    qm template "$TEMPLATE_VMID" 2>&1
+
+    log "=== Template ready ==="
+    log ""
+    log "SmolBSD boots in ~300ms (NetBSD microvm, 64 MB RAM)"
+    log ""
+    log "Clone:"
+    log "  qm clone $TEMPLATE_VMID <new-vmid> --name my-smolbsd --full"
+    log ""
+    log "Start and connect:"
+    log "  qm start <new-vmid>"
+    log "  qm terminal <new-vmid>"
+    log ""
+    log "Note: SmolBSD uses virtio-mmio (not PCIe). The MicroVM.pm"
+    log "module auto-detects NetBSD kernel and uses mmio transport."
+    cleanup
+    exit 0
+fi
+
 OCI_DIR="$WORKDIR/oci"
 BUNDLE_DIR="$WORKDIR/bundle"
 ROOTFS_DIR="$BUNDLE_DIR/rootfs"

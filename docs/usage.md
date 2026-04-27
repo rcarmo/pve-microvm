@@ -324,6 +324,7 @@ pve-microvm-template --image gokrazy --vmid 9004
 | gokrazy | Go appliance | `--image gokrazy` | Instructions only, needs `gok` |
 | OpenWrt | Router OS | `--image openwrt` | x86-64 combined image, q35 boot |
 | OPNsense | Firewall (FreeBSD) | `--image opnsense` | Serial image, q35 boot, >= 1 GB RAM |
+| SmolBSD | NetBSD microvm | `--image smolbsd` | 307 ms boot, virtio-mmio, 64 MB RAM |
 
 ## High Availability
 
@@ -442,3 +443,25 @@ OPNsense features:
 
 > **Note**: Uses q35 machine type. FreeBSD-based — not Linux.
 > Default credentials: root / opnsense
+
+## SmolBSD templates
+
+SmolBSD is a minimal NetBSD system that boots in ~300 ms:
+
+```bash
+pve-microvm-template --image smolbsd --vmid 9007 --name microvm-smolbsd
+```
+
+Builds the SmolBSD rescue image from source (requires `bmake`,
+`libarchive-tools`, `gdisk`) and installs the NetBSD-SMOL kernel.
+
+SmolBSD features:
+- **307 ms boot to shell** on i7-12700
+- 20 MB disk image, 64 MB RAM
+- NetBSD 11.0 base, PVH direct kernel boot
+- virtio-mmio transport (auto-detected by MicroVM.pm)
+- Serial console on `com0`
+
+> **Note**: SmolBSD uses virtio-mmio (not PCIe). MicroVM.pm auto-detects
+> the NetBSD kernel and switches to mmio transport.
+> No guest agent support (NetBSD).

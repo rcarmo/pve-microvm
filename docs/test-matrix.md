@@ -33,6 +33,7 @@ all node specs.
 | Firecracker rootfs | ext4 | varies | `qm importdisk` | ✅ (compat) | — |
 | `openwrt` | Router OS | 13 MB | ✅ | ✅ | — |
 | `opnsense` | Firewall (FreeBSD) | 500 MB | ✅ | — | ✅ |
+| `smolbsd` | NetBSD microvm | 20 MB | ✅ | — | ✅ |
 
 ## Features
 

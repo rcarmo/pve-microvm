@@ -137,18 +137,26 @@ sub microvm_config_to_command {
     push @$cmd, '-name', "$vmname,debug-threads=on";
 
     # microvm machine type with minimal features enabled
+    # Detect if using a NetBSD/SmolBSD kernel (uses virtio-mmio, not PCIe)
+    my $is_netbsd = ($conf->{args} && $conf->{args} =~ m|netbsd|i) ? 1 : 0;
+
     # isa-serial=on  — needed for serial console
     # rtc=on         — needed for timekeeping
     # pit/pic=off    — not needed, reduces attack surface
-    # microvm with PCIe enabled — virtio-mmio device discovery is broken
-    # on kernel 6.12 built from Firecracker 6.1 config (only virtio-blk probes).
-    # PCIe mode adds ~50ms but ALL virtio devices work reliably via PCI transport.
-    push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on,pcie=on';
+    if ($is_netbsd) {
+        # SmolBSD/NetBSD: virtio-mmio, no ACPI, no PCIe
+        push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=off';
+    } else {
+        # Linux: PCIe mode for reliable virtio device discovery
+        push @$cmd, '-M', 'microvm,x-option-roms=off,pit=off,pic=off,isa-serial=on,rtc=on,acpi=on,pcie=on';
+    }
 
-    # Use qboot for instant kernel loading (no SeaBIOS banner)
-    my $qboot = '/usr/share/kvm/qboot.rom';
-    if (-f $qboot) {
-        push @$cmd, '-bios', $qboot;
+    # Use qboot for instant kernel loading (Linux only — NetBSD uses PVH direct boot)
+    if (!$is_netbsd) {
+        my $qboot = '/usr/share/kvm/qboot.rom';
+        if (-f $qboot) {
+            push @$cmd, '-bios', $qboot;
+        }
     }
 
     push @$cmd, '-no-shutdown';
@@ -205,7 +213,7 @@ sub microvm_config_to_command {
 
     # ── Guest agent (optional) ───────────────────────────────────
     my $guest_agent = PVE::QemuServer::Agent::parse_guest_agent($conf);
-    if ($guest_agent->{enabled}) {
+    if ($guest_agent->{enabled} && !$is_netbsd) {
         my $qgasocket = PVE::QemuServer::Helpers::qmp_socket(
             { name => "VM $vmid", id => $vmid, type => 'qga' }
         );
@@ -312,7 +320,11 @@ sub microvm_config_to_command {
         }
 
         push @$cmd, '-drive', $drive_cmd;
-        push @$cmd, '-device', "virtio-blk-pci-non-transitional,drive=drive-$ds";
+        if ($is_netbsd) {
+            push @$cmd, '-device', "virtio-blk-device,drive=drive-$ds";
+        } else {
+            push @$cmd, '-device', "virtio-blk-pci-non-transitional,drive=drive-$ds";
+        }
     }
 
     # ── Network ──────────────────────────────────────────────────
@@ -330,7 +342,8 @@ sub microvm_config_to_command {
         $netdev_cmd .= ",downscript=/usr/libexec/qemu-server/pve-bridgedown";
         push @$cmd, '-netdev', $netdev_cmd;
 
-        my $device_cmd = "virtio-net-pci-non-transitional,netdev=netdev$i";
+        my $device_type = $is_netbsd ? 'virtio-net-device' : 'virtio-net-pci-non-transitional';
+        my $device_cmd = "$device_type,netdev=netdev$i";
         $device_cmd .= ",mac=$net->{macaddr}" if $net->{macaddr};
         push @$cmd, '-device', $device_cmd;
     }
