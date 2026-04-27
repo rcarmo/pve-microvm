@@ -1,3 +1,13 @@
+pve-microvm (0.3.5-1) trixie; urgency=medium
+
+  * Add SmolBSD (NetBSD) template: 307ms boot, 20 MB, virtio-mmio
+  * MicroVM.pm: auto-detect NetBSD kernel, switch to mmio transport
+  * Skip PCIe, qboot, guest agent for NetBSD guests
+  * UI: SmolBSD in Create µVM dialog
+  * 50 shipped features, 21 guest OS types
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sun, 27 Apr 2026 19:15:00 +0000
+
 pve-microvm (0.3.4-1) trixie; urgency=medium
 
   * Add OpenWrt 25.12.2 template (13 MB, q35/BIOS, router OS)
