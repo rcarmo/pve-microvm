@@ -44,7 +44,7 @@ package installation entirely and use the image as-is with our
 | `gokrazy` | Go appliance | Prints `gok` CLI build instructions |
 | `openwrt` | Router OS | x86-64, 13 MB, q35 boot, serial console |
 | `opnsense` | Firewall (FreeBSD) | 500 MB, q35 boot, >= 1 GB RAM |
-| `smolbsd` | NetBSD microvm | 20 MB, 307 ms boot, virtio-mmio |
+| `smolbsd` | NetBSD microvm | 20 MB, 31 ms boot, virtio-mmio |
 | Firecracker rootfs | ext4 | Direct import via `qm importdisk` |
 
 See [Firecracker Compatibility](firecracker.md) for details on importing

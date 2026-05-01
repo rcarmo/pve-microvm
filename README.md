@@ -40,7 +40,7 @@ is already on every PVE node.
 
 - **50 features shipped** — templates, cloning, networking, HA, web UI, backups
 - **21 guest OS** — 13 Linux distros + SmolBSD, OpenWrt, OPNsense, 9Front, OSv, gokrazy, Firecracker
-- **307 ms boot** (SmolBSD) to **~2 s** (Alpine) to **~8 s** (Debian)
+- **31 ms boot** (SmolBSD) to **~2 s** (Alpine) to **~8 s** (Debian)
 - **Create µVM button** in PVE web UI with OCI image picker
 - **All storage backends** — LVM, LVM-thin, ZFS, NFS, CIFS, Ceph
 - **HA + migration** — offline migration in 2 seconds, ha-manager relocate
@@ -75,7 +75,7 @@ Or use the **Create µVM** button in the PVE web UI.
 | **Linux (apk)** | Alpine |
 | **Linux (dnf/tdnf)** | Fedora, Rocky, Alma, Amazon, Oracle, UBI, Photon, Azure Linux |
 | **Router/Firewall** | OpenWrt, OPNsense |
-| **BSD** | SmolBSD (NetBSD, 307ms boot) |
+| **BSD** | SmolBSD (NetBSD, 31ms boot) |
 | **Plan 9** | 9Front |
 | **Unikernel** | OSv, gokrazy |
 | **Compatible** | Any Firecracker rootfs (ext4 import) |

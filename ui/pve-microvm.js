@@ -585,7 +585,7 @@
             ['opnsense', 'OPNsense 25.1 (500 MB, FreeBSD firewall, q35)'],
             ['9front', '9Front / Plan 9 (239 MB, q35)'],
             ['osv', 'OSv unikernel (2.5 MB, q35)'],
-            ['smolbsd', 'SmolBSD (20 MB, NetBSD, 307ms boot)'],
+            ['smolbsd', 'SmolBSD (20 MB, NetBSD, 31ms boot)'],
         ];
 
         var PROFILES = [

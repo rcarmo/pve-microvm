@@ -192,6 +192,8 @@ sub microvm_config_to_command {
 
     if ($forcecpu) {
         push @$cmd, '-cpu', $forcecpu;
+    } elsif ($kvm && $is_netbsd) {
+        push @$cmd, '-cpu', 'host,+invtsc';  # invariant TSC: 10x faster boot
     } elsif ($kvm) {
         push @$cmd, '-cpu', 'host';
     }

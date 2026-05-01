@@ -41,7 +41,7 @@
 ### Guest OS (21 types)
 
 - 13 Linux: Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, UBI, Photon, Azure Linux
-- SmolBSD (NetBSD, 307ms boot, virtio-mmio)
+- SmolBSD (NetBSD, 31ms boot, virtio-mmio)
 - OpenWrt (router OS, 13 MB)
 - OPNsense (FreeBSD firewall, 500 MB)
 - 9Front (Plan 9)

@@ -23,7 +23,7 @@ Any OCI image with apt, apk, dnf, microdnf, tdnf, or yum is supported.
 
 | System | Type | Command | Boot time | Notes |
 |---|---|---|---|---|
-| **SmolBSD** | NetBSD | `--image smolbsd` | 307 ms | virtio-mmio, 64 MB RAM |
+| **SmolBSD** | NetBSD | `--image smolbsd` | 31 ms | virtio-mmio, 64 MB RAM |
 | **OpenWrt** | Router | `--image openwrt` | ~5 s | q35/BIOS, 13 MB |
 | **OPNsense** | Firewall | `--image opnsense` | ~90 s | q35/BIOS, FreeBSD, >= 1 GB |
 | **9Front** | Plan 9 | `--image 9front` | ~3 s | q35/BIOS, 239 MB |
