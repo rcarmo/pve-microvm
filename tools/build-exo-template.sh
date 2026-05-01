@@ -19,7 +19,7 @@ set -euo pipefail
 
 VMID=9020
 STORAGE="local-lvm"
-DISK_SIZE="8G"
+DISK_SIZE="2G"
 NAME="microvm-exo-cpu"
 TAGS="microvm,exo,inference"
 KERNEL="/usr/share/pve-microvm/vmlinuz"
