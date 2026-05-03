@@ -1,3 +1,12 @@
+pve-microvm (0.3.6-1) trixie; urgency=high
+
+  * Fix: Ext.state.Manager.on TypeError broke PVE resource tree
+    (all VM/CT names disappeared from sidebar)
+  * Wrapped get_object_icon_class override in try/catch
+  * Removed statechange listener for Create µVM button
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 03 May 2026 22:45:00 +0000
+
 pve-microvm (0.3.5-1) trixie; urgency=medium
 
   * Add SmolBSD (NetBSD) template: 307ms boot, 20 MB, virtio-mmio

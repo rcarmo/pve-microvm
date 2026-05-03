@@ -52,7 +52,7 @@ is already on every PVE node.
 
 ```bash
 # Install
-dpkg -i pve-microvm_0.3.5-1_all.deb
+dpkg -i pve-microvm_0.3.6-1_all.deb
 
 # Create a template from any OCI image
 pve-microvm-template --image debian:trixie-slim
