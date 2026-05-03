@@ -79,11 +79,15 @@
 
         var origGetIconClass = PVE.Utils.get_object_icon_class;
         PVE.Utils.get_object_icon_class = function (type, record) {
-            var cls = origGetIconClass.call(this, type, record);
-            if (type === 'qemu' && record && hasMicrovmTag(record)) {
-                cls += ' pve-microvm';
+            try {
+                var cls = origGetIconClass.call(this, type, record);
+                if (type === 'qemu' && record && hasMicrovmTag(record)) {
+                    cls += ' pve-microvm';
+                }
+                return cls;
+            } catch (e) {
+                return origGetIconClass.call(this, type, record);
             }
-            return cls;
         };
 
         // ── 2. Machine type dropdown ────────────────────────────────
@@ -844,13 +848,6 @@
             } else {
                 parent.add(createMicrovmBtn);
             }
-
-            // Track capability changes
-            Ext.state.Manager.on('statechange', function (sp, key, value) {
-                if (key === 'GuiCap' && value) {
-                    createMicrovmBtn.setDisabled(!(value.vms || {})['VM.Allocate']);
-                }
-            });
 
             return true;
         };
