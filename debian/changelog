@@ -1,3 +1,12 @@
+pve-microvm (0.3.7-1) trixie; urgency=medium
+
+  * Fix: skip dhclient when static cloud-init/networkd config present
+  * Fix: microvm-dhcp.service conditional on cloud-init network state
+  * Fix: microvm-init checks for static config before background DHCP
+  * Kernel overlay: add Docker support modules (xt_addrtype, overlay, etc.)
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sun, 04 May 2026 11:00:00 +0000
+
 pve-microvm (0.3.6-1) trixie; urgency=high
 
   * Fix: Ext.state.Manager.on TypeError broke PVE resource tree
