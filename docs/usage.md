@@ -76,6 +76,29 @@ pve-microvm-run -it --image alpine:3.21   # Interactive
 pve-microvm-run --no-net -- echo "isolated"
 ```
 
+## Network configuration
+
+Templates use **systemd-networkd** directly — no cloud-init required.
+
+**DHCP (default)**: works automatically on all ethernet interfaces.
+
+**Static IP**: write `/etc/microvm-static-net` before (or after) first boot:
+
+```bash
+# Via guest agent on a running VM:
+qm guest exec <vmid> -- bash -c \
+  'echo "ADDRESS=10.0.0.5/24 GATEWAY=10.0.0.1 DNS=1.1.1.1" > /etc/microvm-static-net'
+qm reboot <vmid>
+
+# Or set the root password and SSH key at creation:
+qm clone 9000 901 --name my-vm --full
+qm guest exec 901 -- bash -c 'echo "ADDRESS=..." > /etc/microvm-static-net'
+qm start 901
+```
+
+The `microvm-static-net.service` runs before networkd and generates the
+appropriate `.network` file. No MAC address dependency — survives cloning.
+
 ## Next steps
 
 - [Supported Guest OS](guests.md) — all 21 distros and specialist OS

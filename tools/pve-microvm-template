@@ -598,7 +598,7 @@ APTSRC
     fi
 
     # Build package list based on profile flags
-    PKGS="iproute2 isc-dhcp-client systemd systemd-sysv ca-certificates curl cloud-init"
+    PKGS="iproute2 isc-dhcp-client systemd systemd-sysv ca-certificates curl"
     [ "$INSTALL_SSH" -eq 1 ] && PKGS="$PKGS openssh-server"
     [ "$INSTALL_AGENT" -eq 1 ] && PKGS="$PKGS qemu-guest-agent"
     log "Packages: $PKGS"
@@ -611,39 +611,47 @@ APTSRC
 
         # Enable essential services
         systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
-        systemctl enable cloud-init 2>/dev/null || true
         systemctl enable systemd-networkd 2>/dev/null || true
         systemctl enable systemd-resolved 2>/dev/null || true
 
-        # DHCP fallback
-        cat > /etc/systemd/system/microvm-dhcp.service << 'DHCPEOF'
+        # Network config: DHCP on all ethernet interfaces by default
+        # Uses Type=ether match — works regardless of interface name or MAC
+        # PVE generates new MACs on clone; this config survives that
+        mkdir -p /etc/systemd/network
+        cat > /etc/systemd/network/20-microvm-dhcp.network << 'NETEOF'
+[Match]
+Type=ether
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+
+[DHCPv4]
+UseDNS=yes
+UseHostname=yes
+NETEOF
+
+        # Static IP override: if /etc/microvm-static-net exists, use it
+        # Format: ADDRESS=192.168.1.100/24 GATEWAY=192.168.1.1 DNS=1.1.1.1
+        cat > /etc/systemd/system/microvm-static-net.service << 'STATICEOF'
 [Unit]
-Description=DHCP fallback on eth0
-After=network.target cloud-init.service
-Wants=network.target
-ConditionPathExists=!/etc/systemd/network/10-cloud-init-eth0.network
+Description=Apply static network config if present
+Before=systemd-networkd.service
+ConditionPathExists=/etc/microvm-static-net
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
-ExecStartPre=/bin/sh -c 'test ! -f /run/cloud-init/network-config-applied'
-ExecStartPre=/sbin/ip link set eth0 up
-ExecStart=/usr/sbin/dhclient -4 eth0
-ExecStop=/usr/sbin/dhclient -r eth0
+ExecStart=/bin/sh -c '. /etc/microvm-static-net && mkdir -p /etc/systemd/network && printf "[Match]\nType=ether\n\n[Network]\nDHCP=no\nAddress=$$ADDRESS\nGateway=$$GATEWAY\nDNS=$${DNS:-1.1.1.1}\n" > /etc/systemd/network/10-static.network && rm -f /etc/systemd/network/20-microvm-dhcp.network'
 
 [Install]
-WantedBy=multi-user.target
-DHCPEOF
-        systemctl enable microvm-dhcp.service 2>/dev/null || true
+WantedBy=sysinit.target
+STATICEOF
+        systemctl enable microvm-static-net.service 2>/dev/null || true
 
         # Custom serial console service
         systemctl disable serial-getty@ttyS0.service 2>/dev/null || true
         printf '[Unit]\nDescription=microvm serial console\nAfter=systemd-user-sessions.service\n\n[Service]\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\nRestart=always\nRestartSec=0\nType=idle\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/microvm-console.service
         systemctl enable microvm-console.service 2>/dev/null || true
-
-        # Configure cloud-init for PVE nocloud
-        mkdir -p /etc/cloud/cloud.cfg.d
-        printf 'datasource_list: [NoCloud, ConfigDrive, None]\ndatasource:\n  NoCloud:\n    fs_label: cidata\n' > /etc/cloud/cloud.cfg.d/99-pve.cfg
 
         # Set empty root password
         sed -i 's|^root:[^:]*:|root::|' /etc/shadow 2>/dev/null || true
@@ -837,13 +845,12 @@ IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[
 log "Imported disk: $IMPORT_VOLID"
 qm set "$TEMPLATE_VMID" --scsi0 "$IMPORT_VOLID"
 
-# Step 7: Add cloud-init drive
-log "Adding cloud-init drive..."
-qm set "$TEMPLATE_VMID" --scsi1 "$STORAGE:cloudinit" 2>/dev/null || \
-    log "warning: could not add cloud-init drive"
-
-# Set cloud-init defaults
-qm set "$TEMPLATE_VMID" --ciuser root --ipconfig0 ip=dhcp 2>/dev/null || true
+# Step 7: Set static IP via /etc/microvm-static-net if ipconfig0 is set
+# No cloud-init drive needed — networking is handled by systemd-networkd
+# To set a static IP on a clone:
+#   qm guest exec <vmid> -- bash -c 'echo "ADDRESS=10.0.0.5/24 GATEWAY=10.0.0.1 DNS=1.1.1.1" > /etc/microvm-static-net'
+#   qm reboot <vmid>
+# Or simply: echo the config before first boot via the template tool
 
 # Step 8: Convert to template
 log "Converting to template..."
