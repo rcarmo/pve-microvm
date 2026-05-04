@@ -24,11 +24,22 @@ hostname microvm 2>/dev/null
 # Basic networking — bring up loopback
 ip link set lo up 2>/dev/null
 
-# Try DHCP on eth0 if available (background, don't block boot)
-if [ -x /usr/sbin/dhclient ]; then
-    dhclient eth0 >/dev/null 2>&1 &
-elif [ -x /sbin/udhcpc ]; then
-    udhcpc -i eth0 -q -n >/dev/null 2>&1 &
+# Try DHCP on eth0 only if no static network config exists
+# (cloud-init or networkd may configure the interface with a static IP)
+dhcp_needed=1
+if grep -rqs '^Address=' /etc/systemd/network/*.network 2>/dev/null; then
+    dhcp_needed=0
+fi
+if grep -qs 'iface.*static' /etc/network/interfaces /etc/network/interfaces.d/* 2>/dev/null; then
+    dhcp_needed=0
+fi
+
+if [ "$dhcp_needed" = "1" ]; then
+    if [ -x /usr/sbin/dhclient ]; then
+        dhclient eth0 >/dev/null 2>&1 &
+    elif [ -x /sbin/udhcpc ]; then
+        udhcpc -i eth0 -q -n >/dev/null 2>&1 &
+    fi
 fi
 
 # Set PATH

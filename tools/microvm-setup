@@ -24,17 +24,36 @@ mountpoint -q /sys || mount -t sysfs sys /sys 2>/dev/null || true
 mountpoint -q /dev || mount -t devtmpfs dev /dev 2>/dev/null || true
 
 # Wait for network (cloud-init may configure it, or DHCP)
+# Skip DHCP if static cloud-init or networkd config is already present
+has_static_config() {
+    # Check cloud-init nocloud network config (static IP via ipconfig0)
+    if [ -d /run/cloud-init ] && cloud-init query ds.meta_data 2>/dev/null | grep -q 'ip='; then
+        return 0
+    fi
+    # Check systemd-networkd .network files with Address= (static)
+    if grep -rqs '^Address=' /etc/systemd/network/*.network 2>/dev/null; then
+        return 0
+    fi
+    # Check /etc/network/interfaces for static config
+    if grep -qs 'iface.*static' /etc/network/interfaces /etc/network/interfaces.d/* 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
 log "Waiting for network..."
 for i in $(seq 1 30); do
     if ip route show default 2>/dev/null | grep -q default; then
         break
     fi
-    # Try DHCP on any available interface
-    for iface in eth0 enp0s1 ens3; do
-        if ip link show "$iface" >/dev/null 2>&1; then
-            dhclient "$iface" 2>/dev/null || true
-        fi
-    done
+    # Only run dhclient if no static config is present
+    if ! has_static_config; then
+        for iface in eth0 enp0s1 ens3; do
+            if ip link show "$iface" >/dev/null 2>&1; then
+                dhclient "$iface" 2>/dev/null || true
+            fi
+        done
+    fi
     sleep 1
 done
 

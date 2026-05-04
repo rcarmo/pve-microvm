@@ -616,7 +616,24 @@ APTSRC
         systemctl enable systemd-resolved 2>/dev/null || true
 
         # DHCP fallback
-        printf '[Unit]\nDescription=DHCP on eth0\nAfter=network.target\nWants=network.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStartPre=/sbin/ip link set eth0 up\nExecStart=/usr/sbin/dhclient -4 eth0\nExecStop=/usr/sbin/dhclient -r eth0\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/microvm-dhcp.service
+        cat > /etc/systemd/system/microvm-dhcp.service << 'DHCPEOF'
+[Unit]
+Description=DHCP fallback on eth0
+After=network.target cloud-init.service
+Wants=network.target
+ConditionPathExists=!/etc/systemd/network/10-cloud-init-eth0.network
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sh -c 'test ! -f /run/cloud-init/network-config-applied'
+ExecStartPre=/sbin/ip link set eth0 up
+ExecStart=/usr/sbin/dhclient -4 eth0
+ExecStop=/usr/sbin/dhclient -r eth0
+
+[Install]
+WantedBy=multi-user.target
+DHCPEOF
         systemctl enable microvm-dhcp.service 2>/dev/null || true
 
         # Custom serial console service
@@ -735,7 +752,24 @@ elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] |
         systemctl enable microvm-console.service 2>/dev/null || true
 
         # DHCP fallback
-        printf '[Unit]\\nDescription=DHCP on eth0\\nAfter=network.target\\n\\n[Service]\\nType=oneshot\\nRemainAfterExit=yes\\nExecStartPre=/sbin/ip link set eth0 up\\nExecStart=/usr/sbin/dhclient -4 eth0\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/microvm-dhcp.service
+        cat > /etc/systemd/system/microvm-dhcp.service << 'DHCPEOF'
+[Unit]
+Description=DHCP fallback on eth0
+After=network.target cloud-init.service
+Wants=network.target
+ConditionPathExists=!/etc/systemd/network/10-cloud-init-eth0.network
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sh -c 'test ! -f /run/cloud-init/network-config-applied'
+ExecStartPre=/sbin/ip link set eth0 up
+ExecStart=/usr/sbin/dhclient -4 eth0
+ExecStop=/usr/sbin/dhclient -r eth0
+
+[Install]
+WantedBy=multi-user.target
+DHCPEOF
         systemctl enable microvm-dhcp.service 2>/dev/null || true
 
         # Set empty root password
