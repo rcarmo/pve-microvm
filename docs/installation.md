@@ -6,8 +6,8 @@ Download the latest `.deb` from the [releases page](https://github.com/rcarmo/pv
 
 ```bash
 # Download and install
-wget https://github.com/rcarmo/pve-microvm/releases/download/v0.3.5/pve-microvm_0.3.7-1_all.deb
-dpkg -i pve-microvm_0.3.7-1_all.deb
+wget https://github.com/rcarmo/pve-microvm/releases/download/v0.3.5/pve-microvm_0.3.8-1_all.deb
+dpkg -i pve-microvm_0.3.8-1_all.deb
 apt-get install -f   # resolve any missing dependencies
 ```
 
@@ -47,6 +47,8 @@ The `prerm` hook automatically reverts all patches and restores the original
 `qemu-server` files from backup. No VMs or data are affected.
 
 ## Requirements
+
+**Minimum: Proxmox VE 9.0+** (Debian Trixie). PVE 8.x is not supported.
 
 | Component | Version | Tested | Notes |
 |---|---|---|---|

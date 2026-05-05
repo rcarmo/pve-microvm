@@ -1,3 +1,14 @@
+pve-microvm (0.3.8-1) trixie; urgency=medium
+
+  * Remove cloud-init dependency: networking via systemd-networkd directly
+  * DHCP by default on all ethernet interfaces (Type=ether match)
+  * Static IP via /etc/microvm-static-net (no MAC dependency)
+  * No cloud-init drive (scsi1) needed — one less disk per VM
+  * Fix: dhclient split-IP prevented on static-configured VMs
+  * Templates no longer install cloud-init package (saves ~12 MB)
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Mon, 05 May 2026 07:10:00 +0000
+
 pve-microvm (0.3.7-1) trixie; urgency=medium
 
   * Fix: skip dhclient when static cloud-init/networkd config present

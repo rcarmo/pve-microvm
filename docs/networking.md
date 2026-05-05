@@ -1,5 +1,19 @@
 # Networking & Storage Sharing
 
+## Network model (v0.3.8+)
+
+Microvms use **systemd-networkd** directly — no cloud-init required.
+
+- **DHCP by default**: `20-microvm-dhcp.network` matches all ethernet
+  interfaces by `Type=ether` — no MAC dependency, survives cloning.
+- **Static IP**: write `/etc/microvm-static-net`:
+  ```bash
+  echo "ADDRESS=10.0.0.5/24 GATEWAY=10.0.0.1 DNS=1.1.1.1" > /etc/microvm-static-net
+  reboot
+  ```
+- **No cloud-init drive** (scsi1) needed.
+- **No MAC matching** — works with any interface name (`eth0`, `enp0s5`, etc.)
+
 ## Network interfaces
 
 Uses `virtio-net-pci-non-transitional` with PCIe.
