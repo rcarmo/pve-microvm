@@ -9,7 +9,7 @@ jobs:
     name: Build microvm kernel
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install build dependencies
         run: |
@@ -19,7 +19,7 @@ jobs:
             cpio busybox-static
 
       - name: Cache kernel source
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/pve-microvm-kernel-build/linux-*.tar.xz
           key: kernel-source-6.12.22
@@ -32,7 +32,7 @@ jobs:
           file "$GITHUB_WORKSPACE/kernel/vmlinuz-microvm"
 
       - name: Upload kernel artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kernel-artifacts
           path: |
@@ -45,10 +45,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-kernel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download kernel artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: kernel-artifacts
           path: kernel/
@@ -77,7 +77,7 @@ jobs:
           dpkg-deb -I dist/pve-microvm_*.deb
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pve-microvm-deb
           path: dist/pve-microvm_*.deb
@@ -91,22 +91,22 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download kernel
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: kernel-artifacts
           path: release/
 
       - name: Download .deb
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: pve-microvm-deb
           path: release/
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release/vmlinuz-microvm
