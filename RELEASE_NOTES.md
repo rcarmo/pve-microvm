@@ -1,4 +1,4 @@
-# pve-microvm v0.3.4
+# pve-microvm v0.3.10
 
 ## New guest OS support
 
