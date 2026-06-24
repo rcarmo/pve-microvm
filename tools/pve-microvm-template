@@ -363,7 +363,7 @@ if echo "$IMAGE" | grep -qi '^openwrt'; then
         --cores "${CORES:-1}" \
         --name "${TEMPLATE_NAME:-microvm-openwrt}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,openwrt" 2>&1 || die "qm create failed"
 
     log "Importing disk..."
@@ -413,7 +413,7 @@ if echo "$IMAGE" | grep -qi '^opnsense'; then
         --cores "${CORES:-2}" \
         --name "${TEMPLATE_NAME:-microvm-opnsense}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,opnsense,freebsd" 2>&1 || die "qm create failed"
 
     log "Importing disk (2.5 GB)..."
@@ -471,7 +471,7 @@ if echo "$IMAGE" | grep -qi '^smolbsd'; then
         --cores "${CORES:-1}" \
         --name "${TEMPLATE_NAME:-microvm-smolbsd}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,smolbsd,netbsd" \
         --args "-kernel /usr/share/pve-microvm/netbsd-smol -append \"console=com root=dk0\"" 2>&1 || die "qm create failed"
 
