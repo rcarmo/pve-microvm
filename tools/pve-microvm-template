@@ -65,6 +65,7 @@ Options:
   --disk-size SIZE   Disk size (default: $DISK_SIZE)
   --memory MiB       Memory in MiB (default: $MEMORY)
   --cores N          CPU cores (default: $CORES)
+  --bridge BRIDGE    Network bridge (default: $BRIDGE)
   --profile PROFILE  minimal|standard|full (see below)
   --no-docker        Skip Docker CE installation
   --no-ssh           Skip OpenSSH server installation
