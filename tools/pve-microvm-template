@@ -157,6 +157,8 @@ while [[ $# -gt 0 ]]; do
         --memory=*)    MEMORY="${1#*=}"; [ -n "$MEMORY" ] || die "--memory requires a value"; shift ;;
         --cores)       CORES=$(require_value "$1" "${2:-}"); shift 2 ;;
         --cores=*)     CORES="${1#*=}"; [ -n "$CORES" ] || die "--cores requires a value"; shift ;;
+        --bridge)      BRIDGE=$(require_value "$1" "${2:-}"); shift 2 ;;
+        --bridge=*)    BRIDGE="${1#*=}"; [ -n "$BRIDGE" ] || die "--bridge requires a value"; shift ;;
         --profile)     PROFILE=$(require_value "$1" "${2:-}"); shift 2 ;;
         --profile=*)   PROFILE="${1#*=}"; [ -n "$PROFILE" ] || die "--profile requires a value"; shift ;;
         --no-docker)   INSTALL_DOCKER=0; shift ;;
