@@ -179,6 +179,15 @@ sub microvm_config_to_command {
     push @$cmd, '-chardev', "socket,id=qmp,path=$qmpsocket,server=on,wait=off";
     push @$cmd, '-mon', "chardev=qmp,mode=control";
 
+    # qmeventd event socket — without it guest-initiated shutdowns are never
+    # reaped: QEMU (running with -no-shutdown) stays in 'paused (shutdown)'
+    # and qm shutdown / qm reboot hang until timeout
+    my $kvmver = PVE::QemuServer::Helpers::kvm_user_version();
+    my $reconnect_param = PVE::QemuServer::Helpers::min_version($kvmver, 9, 2)
+        ? "reconnect-ms=5000" : "reconnect=5";
+    push @$cmd, '-chardev', "socket,id=qmp-event,path=/var/run/qmeventd.sock,$reconnect_param";
+    push @$cmd, '-mon', "chardev=qmp-event,mode=control";
+
     # PID file — required for PVE process tracking
     push @$cmd, '-pidfile', PVE::QemuServer::Helpers::vm_pidfile_name($vmid);
     push @$cmd, '-daemonize';
