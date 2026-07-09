@@ -4,17 +4,18 @@ set -e
 
 case "$1" in
     configure)
-        # Apply patches to current qemu-server files
-        rm -f /usr/share/pve-microvm/.applied
+        # Refresh the installed module/UI and apply patches only if qemu-server
+        # does not already contain them. Do not remove the stamp here: doing so
+        # made package upgrades re-insert duplicate Perl blocks.
         /usr/share/pve-microvm/pve-microvm-patch apply
         # Enable early-boot service to ensure patches survive reboots
         systemctl daemon-reload 2>/dev/null || true
         systemctl enable pve-microvm-early.service 2>/dev/null || true
         ;;
     triggered)
-        # qemu-server changed — re-apply patches
-        echo "pve-microvm: qemu-server changed, re-applying patches..."
-        rm -f /usr/share/pve-microvm/.applied
+        # qemu-server changed — apply if its files were replaced. The patcher
+        # checks the actual markers as well as the stamp.
+        echo "pve-microvm: qemu-server changed, checking patches..."
         /usr/share/pve-microvm/pve-microvm-patch apply
         ;;
 esac

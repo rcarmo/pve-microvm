@@ -23,8 +23,15 @@ log() { echo "pve-microvm: $*"; }
 die() { echo "pve-microvm: ERROR: $*" >&2; exit 1; }
 
 cmd_apply() {
-    if [ -f "$STAMP" ] && grep -q "PVE::QemuServer::MicroVM" "$QEMU_SERVER_PM" 2>/dev/null; then
-        log "patches already applied (stamp exists), skipping"
+    if [ -f "$STAMP" ] \
+        && grep -q "use PVE::QemuServer::MicroVM;" "$QEMU_SERVER_PM" 2>/dev/null \
+        && grep -q "PVE::QemuServer::MicroVM::is_microvm" "$QEMU_SERVER_PM" 2>/dev/null; then
+        # Package upgrades replace the source module/UI under
+        # /usr/share/pve-microvm but qemu-server is already patched. Refresh
+        # deployed files without inserting a second Perl block.
+        log "patches already applied; refreshing module and UI"
+        install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
+        install_ui
         return 0
     fi
 
@@ -113,18 +120,23 @@ path = "/usr/share/perl5/PVE/QemuServer.pm"
 with open(path) as f:
     lines = f.readlines()
 
+text = "".join(lines)
+has_use = "use PVE::QemuServer::MicroVM;" in text
+has_check = "PVE::QemuServer::MicroVM::is_microvm" in text
+
 out = []
-added_use = False
-added_check = False
+added_use = has_use
+added_check = has_check
 for line in lines:
-    # Add use statement
+    # Add each marker only when absent. This remains safe if the stamp was
+    # removed manually or an interrupted package transaction left files and
+    # stamp out of sync.
     if not added_use and line.startswith("use PVE::QemuServer::Machine;"):
         out.append(line)
         out.append("use PVE::QemuServer::MicroVM;\n")
         added_use = True
         continue
 
-    # Add microvm delegation at start of config_to_command
     if not added_check and line.startswith("sub config_to_command {"):
         out.append(line)
         out.append("    # pve-microvm: delegate to microvm command builder\n")

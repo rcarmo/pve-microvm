@@ -1,4 +1,17 @@
-# pve-microvm v0.3.17
+# pve-microvm v0.3.18
+
+## Upgrade safety
+
+- Package upgrades no longer remove the patch stamp and blindly insert another
+  Perl import/delegation block.
+- When qemu-server is already patched, upgrades refresh `MicroVM.pm` and the UI
+  without modifying `QemuServer.pm` again.
+- If files and stamp are out of sync, the patcher checks existing markers before
+  insertion, so applying twice remains idempotent.
+- The CI suite executes the embedded QemuServer patcher twice against a fixture
+  and requires exactly one import and one delegation block.
+
+This release supersedes v0.3.17 for deployment.
 
 ## Guest lifecycle fixes
 

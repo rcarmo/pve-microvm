@@ -1,3 +1,13 @@
+pve-microvm (0.3.18-1) trixie; urgency=critical
+
+  * Fix: package upgrades no longer remove the patch stamp before apply
+  * Fix: refresh MicroVM.pm and UI without duplicating QemuServer.pm blocks
+  * Fix: QemuServer import/delegation insertion checks existing markers
+  * Tests: execute the embedded patcher twice and assert single insertion
+  * Supersedes 0.3.17 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 09 Jul 2026 20:00:00 +0000
+
 pve-microvm (0.3.17-1) trixie; urgency=high
 
   * Fix: add qmeventd event monitor so qm shutdown/reboot complete cleanly
