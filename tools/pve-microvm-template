@@ -65,6 +65,7 @@ Options:
   --disk-size SIZE   Disk size (default: $DISK_SIZE)
   --memory MiB       Memory in MiB (default: $MEMORY)
   --cores N          CPU cores (default: $CORES)
+  --bridge BRIDGE    Network bridge (default: $BRIDGE)
   --profile PROFILE  minimal|standard|full (see below)
   --no-docker        Skip Docker CE installation
   --no-ssh           Skip OpenSSH server installation
@@ -157,6 +158,8 @@ while [[ $# -gt 0 ]]; do
         --memory=*)    MEMORY="${1#*=}"; [ -n "$MEMORY" ] || die "--memory requires a value"; shift ;;
         --cores)       CORES=$(require_value "$1" "${2:-}"); shift 2 ;;
         --cores=*)     CORES="${1#*=}"; [ -n "$CORES" ] || die "--cores requires a value"; shift ;;
+        --bridge)      BRIDGE=$(require_value "$1" "${2:-}"); shift 2 ;;
+        --bridge=*)    BRIDGE="${1#*=}"; [ -n "$BRIDGE" ] || die "--bridge requires a value"; shift ;;
         --profile)     PROFILE=$(require_value "$1" "${2:-}"); shift 2 ;;
         --profile=*)   PROFILE="${1#*=}"; [ -n "$PROFILE" ] || die "--profile requires a value"; shift ;;
         --no-docker)   INSTALL_DOCKER=0; shift ;;
@@ -363,7 +366,7 @@ if echo "$IMAGE" | grep -qi '^openwrt'; then
         --cores "${CORES:-1}" \
         --name "${TEMPLATE_NAME:-microvm-openwrt}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,openwrt" 2>&1 || die "qm create failed"
 
     log "Importing disk..."
@@ -413,7 +416,7 @@ if echo "$IMAGE" | grep -qi '^opnsense'; then
         --cores "${CORES:-2}" \
         --name "${TEMPLATE_NAME:-microvm-opnsense}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,opnsense,freebsd" 2>&1 || die "qm create failed"
 
     log "Importing disk (2.5 GB)..."
@@ -471,7 +474,7 @@ if echo "$IMAGE" | grep -qi '^smolbsd'; then
         --cores "${CORES:-1}" \
         --name "${TEMPLATE_NAME:-microvm-smolbsd}" \
         --serial0 socket --vga serial0 \
-        --net0 virtio,bridge=vmbr0 \
+        --net0 virtio,bridge=$BRIDGE \
         --tags "$TAGS,smolbsd,netbsd" \
         --args "-kernel /usr/share/pve-microvm/netbsd-smol -append \"console=com root=dk0\"" 2>&1 || die "qm create failed"
 
