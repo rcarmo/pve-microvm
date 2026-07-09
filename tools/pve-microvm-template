@@ -625,7 +625,7 @@ APTSRC
     fi
 
     # Build package list based on profile flags
-    PKGS="iproute2 isc-dhcp-client systemd systemd-sysv ca-certificates curl"
+    PKGS="iproute2 isc-dhcp-client systemd systemd-sysv ca-certificates curl dbus"
     [ "$INSTALL_SSH" -eq 1 ] && PKGS="$PKGS openssh-server"
     [ "$INSTALL_AGENT" -eq 1 ] && PKGS="$PKGS qemu-guest-agent"
     log "Packages: $PKGS"
