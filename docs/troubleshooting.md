@@ -48,11 +48,50 @@ modprobe kvm_intel   # or kvm_amd
 
 For nested VMs, enable nested virtualization on the outer hypervisor.
 
-## Patches not applied after qemu-server upgrade
+## `qm shutdown` or `qm reboot` times out
+
+MicroVMs do not have a conventional ACPI power button. Graceful power operations
+therefore require the QEMU guest agent and a working guest shutdown command.
+
+Releases before v0.3.17 also omitted PVE's qmeventd monitor socket. The guest
+could power off correctly while QEMU remained in `paused (shutdown)` because it
+runs with `-no-shutdown`.
+
+Upgrade `pve-microvm`, restart the VM so the new QEMU command line is used, and
+verify the qmeventd monitor is present:
 
 ```bash
-/usr/share/pve-microvm/pve-microvm-patch revert
+qm showcmd <vmid> --pretty | grep -E 'qmp-event|qmeventd.sock'
+```
+
+Existing Debian/Ubuntu guests built without D-Bus also need:
+
+```bash
+qm guest exec <vmid> -- bash -lc \
+  'apt-get update && apt-get install -y dbus && systemctl enable --now dbus'
+```
+
+Then verify both lifecycle operations. A reboot must change the guest boot ID;
+a shutdown must leave no QEMU process behind:
+
+```bash
+qm reboot <vmid>
+qm shutdown <vmid> --timeout 60
+qm status <vmid>
+```
+
+Guests created with `--no-agent` still have no guaranteed graceful shutdown
+path; use `qm stop` or install/enable the QEMU guest agent.
+
+## Patches not applied after qemu-server upgrade
+
+Do not restore an old backup before applying patches, because it may belong to
+an older qemu-server version. Apply the current patch set directly:
+
+```bash
+rm -f /usr/share/pve-microvm/.applied
 /usr/share/pve-microvm/pve-microvm-patch apply
+systemctl restart pvedaemon
 ```
 
 ## pve-oci-import fails: "required tool not found"

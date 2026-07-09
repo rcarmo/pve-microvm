@@ -1,26 +1,45 @@
-# pve-microvm v0.3.4
+# pve-microvm v0.3.17
 
-## New guest OS support
+## Guest lifecycle fixes
 
-- **OpenWrt 25.12.2** — `pve-microvm-template --image openwrt`
-  13 MB download, boots in ~5s, full routing/firewall stack
-- **OPNsense 25.1** — `pve-microvm-template --image opnsense`
-  FreeBSD-based firewall, 500 MB download, HTTPS + SSH out of box
+- Add PVE's qmeventd event monitor to every microVM QEMU command line.
+  Guest-initiated shutdowns are now reaped correctly instead of leaving QEMU
+  paused in `shutdown` state under `-no-shutdown`.
+- `qm shutdown`, `qm reboot`, and the corresponding PVE web UI actions now work
+  for standard-profile guests with the QEMU guest agent enabled.
+- Add D-Bus to newly built Debian/Ubuntu templates so the guest agent can ask
+  systemd/logind to schedule shutdown and reboot.
 
-## Bug fixes
+Existing Debian/Ubuntu guests built without D-Bus need:
 
-- **postinst reapply** — upgrades now always revert+reapply patches
-  (previously skipped when stamp existed, leaving stale MicroVM.pm)
-- **Cloud-init drive order** — scsi0 always first (/dev/vda = root)
-  via sorted conf key iteration (not valid_drive_names)
+```bash
+apt-get update
+apt-get install -y dbus
+systemctl enable --now dbus
+```
 
-## UI
+Guests created with `--no-agent` still have no guaranteed graceful shutdown
+path; use `qm stop` or install and enable the QEMU guest agent.
 
-- Create µVM dialog: added OpenWrt, OPNsense, 9Front, OSv to dropdown
-- 49 shipped features total
+## Configurable PVE bridge
 
-## Full guest OS matrix
+- Add `--bridge BRIDGE` and `--bridge=BRIDGE` to
+  `pve-microvm-template`.
+- Remove hardcoded `vmbr0` from OpenWrt, OPNsense, and SmolBSD template paths.
+- All template paths now honour the configured bridge.
 
-12 Linux distros + 8 non-Linux:
-Debian, Ubuntu, Alpine, Fedora, Rocky, Alma, Amazon, Oracle, UBI,
-Photon, Azure Linux, 9Front, OSv, gokrazy, Firecracker, OpenWrt, OPNsense
+## Tests and documentation
+
+- Add parser tests for both bridge argument forms and missing values.
+- Add command-builder contracts for qmeventd, QEMU reconnect compatibility,
+  D-Bus, and hardcoded bridge prevention.
+- Document shutdown/reboot diagnosis, existing-guest remediation, and the
+  guest-agent limitation.
+- Correct troubleshooting guidance: apply patches to the current qemu-server
+  files directly; never restore a potentially stale backup before applying.
+
+## Upgrade
+
+Use the latest-release command from the installation guide, install the `.deb`,
+and restart each running microVM so its QEMU process gains the qmeventd monitor.
+Templates and stopped guests do not need to be started during the upgrade.

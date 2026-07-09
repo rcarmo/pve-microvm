@@ -31,6 +31,7 @@ qm terminal 901
 | `--disk-size` | `2G` | Root disk size |
 | `--memory` | `512` | Memory in MB |
 | `--cores` | `1` | CPU cores |
+| `--bridge` | `vmbr0` | PVE network bridge used by every template path |
 | `--profile` | `standard` | `minimal`, `standard`, or `full` |
 | `--no-docker` | — | Skip Docker install |
 | `--no-ssh` | — | Skip SSH server |

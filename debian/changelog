@@ -1,3 +1,14 @@
+pve-microvm (0.3.17-1) trixie; urgency=high
+
+  * Fix: add qmeventd event monitor so qm shutdown/reboot complete cleanly
+  * Templates: install D-Bus in apt guests for guest-agent power operations
+  * Templates: add --bridge and honour it in OpenWrt, OPNsense, and SmolBSD
+  * Tests: add qmeventd, D-Bus, bridge parser, and hardcoded-bridge contracts
+  * Docs: add existing-guest D-Bus remediation and no-agent limitation
+  * Docs: replace stale release notes and remove unsafe revert-before-apply advice
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 09 Jul 2026 19:45:00 +0000
+
 pve-microvm (0.3.16-1) trixie; urgency=high
 
   * Fix: CI/release kernel build now merges pve-microvm-overlay.config

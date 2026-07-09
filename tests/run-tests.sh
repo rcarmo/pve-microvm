@@ -94,9 +94,12 @@ run_test "GUI command shape parses" parser_ok \
     --image nginx:1.30.2 --vmid 105 --name microvm --storage local-lvm \
     --memory 256 --disk-size 2G --profile standard --cores 1
 
+run_test "bridge space form parses" parser_ok --bridge vmbr1
+run_test "bridge equals form parses" parser_ok --bridge=vmbr1
+
 run_test "equals form parses" parser_ok \
     --image=nginx:1.30.2 --vmid=105 --name=microvm --storage=local-lvm \
-    --memory=256 --disk-size=2G --profile=standard --cores=1
+    --memory=256 --disk-size=2G --profile=standard --cores=1 --bridge=vmbr1
 
 run_test "profile flags parse" parser_ok --profile full --no-docker --no-ssh --no-agent
 run_test "list action parses" parser_ok --list
@@ -109,6 +112,8 @@ run_test "missing --disk-size value fails cleanly" parser_fail --disk-size
 run_test "missing --memory value fails cleanly" parser_fail --memory
 run_test "missing --memory before next option fails cleanly" parser_fail --memory --cores 1
 run_test "missing --cores value fails cleanly" parser_fail --cores
+run_test "missing --bridge value fails cleanly" parser_fail --bridge
+run_test "missing --bridge before next option fails cleanly" parser_fail --bridge --cores 1
 run_test "missing --profile value fails cleanly" parser_fail --profile
 run_test "empty --memory= fails cleanly" parser_fail --memory=
 run_test "empty --cores= fails cleanly" parser_fail --cores=
@@ -144,6 +149,12 @@ run_test "virtio-mem backend exists" assert_file_contains tools/MicroVM.pm 'memo
 run_test "virtio-mem device exists" assert_file_contains tools/MicroVM.pm 'virtio-mem-pci,id=vmem0,memdev=vmem0'
 run_test "virtio-mem starts with requested-size=0" assert_file_contains tools/MicroVM.pm 'requested-size=0'
 run_test "no stale balloon_target assignment" assert_file_not_contains tools/MicroVM.pm 'my \$balloon_target'
+run_test "microVM command includes qmeventd socket" assert_file_contains tools/MicroVM.pm 'path=/var/run/qmeventd\.sock'
+run_test "microVM command includes qmp-event monitor" assert_file_contains tools/MicroVM.pm 'chardev=qmp-event,mode=control'
+run_test "qmeventd supports QEMU 9.2 reconnect-ms" assert_file_contains tools/MicroVM.pm 'reconnect-ms=5000'
+run_test "qmeventd keeps older QEMU reconnect fallback" assert_file_contains tools/MicroVM.pm 'reconnect=5'
+run_test "apt templates install dbus for guest shutdown" assert_file_contains tools/pve-microvm-template 'PKGS=.*dbus'
+run_test "special templates do not hardcode vmbr0" assert_file_not_contains tools/pve-microvm-template 'bridge=vmbr0'
 
 log "Kernel config contracts"
 run_test "kernel build merges PVE overlay" assert_file_contains kernel/build-kernel.sh 'pve-microvm-overlay\.config'
