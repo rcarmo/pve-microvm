@@ -23,9 +23,10 @@ log() { echo "pve-microvm: $*"; }
 die() { echo "pve-microvm: ERROR: $*" >&2; exit 1; }
 
 cmd_apply() {
-    if [ -f "$STAMP" ] \
-        && grep -q "use PVE::QemuServer::MicroVM;" "$QEMU_SERVER_PM" 2>/dev/null \
-        && grep -q "PVE::QemuServer::MicroVM::is_microvm" "$QEMU_SERVER_PM" 2>/dev/null; then
+    local use_count check_count
+    use_count=$(grep -c '^use PVE::QemuServer::MicroVM;$' "$QEMU_SERVER_PM" 2>/dev/null || true)
+    check_count=$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$QEMU_SERVER_PM" 2>/dev/null || true)
+    if [ -f "$STAMP" ] && [ "$use_count" -eq 1 ] && [ "$check_count" -eq 1 ]; then
         # Package upgrades replace the source module/UI under
         # /usr/share/pve-microvm but qemu-server is already patched. Refresh
         # deployed files without inserting a second Perl block.
@@ -40,9 +41,13 @@ cmd_apply() {
 
     mkdir -p "$BACKUP_DIR"
 
-    log "backing up originals to $BACKUP_DIR"
-    cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
-    cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
+    if [ "$use_count" -eq 0 ] && [ "$check_count" -eq 0 ]; then
+        log "backing up originals to $BACKUP_DIR"
+        cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
+        cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
+    else
+        log "existing patch markers found (use=$use_count, delegate=$check_count); preserving backups and normalising"
+    fi
 
     # ── Patch Machine.pm ─────────────────────────────────────────
     log "patching Machine.pm"
@@ -120,17 +125,30 @@ path = "/usr/share/perl5/PVE/QemuServer.pm"
 with open(path) as f:
     lines = f.readlines()
 
-text = "".join(lines)
-has_use = "use PVE::QemuServer::MicroVM;" in text
-has_check = "PVE::QemuServer::MicroVM::is_microvm" in text
+# Remove every copy of our exact import/delegation block first. This heals
+# hosts affected by older package upgrades that inserted the block repeatedly.
+clean = []
+i = 0
+while i < len(lines):
+    if lines[i] == "use PVE::QemuServer::MicroVM;\n":
+        i += 1
+        continue
+    if (
+        lines[i] == "    # pve-microvm: delegate to microvm command builder\n"
+        and i + 3 < len(lines)
+        and lines[i + 1] == "    if (PVE::QemuServer::MicroVM::is_microvm(($_[2]))) {\n"
+        and lines[i + 2] == "        return PVE::QemuServer::MicroVM::microvm_config_to_command(@_);\n"
+        and lines[i + 3] == "    }\n"
+    ):
+        i += 4
+        continue
+    clean.append(lines[i])
+    i += 1
 
 out = []
-added_use = has_use
-added_check = has_check
-for line in lines:
-    # Add each marker only when absent. This remains safe if the stamp was
-    # removed manually or an interrupted package transaction left files and
-    # stamp out of sync.
+added_use = False
+added_check = False
+for line in clean:
     if not added_use and line.startswith("use PVE::QemuServer::Machine;"):
         out.append(line)
         out.append("use PVE::QemuServer::MicroVM;\n")

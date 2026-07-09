@@ -1,3 +1,13 @@
+pve-microvm (0.3.19-1) trixie; urgency=critical
+
+  * Fix: detect duplicate historical QemuServer import/delegation blocks
+  * Fix: normalise damaged hosts back to exactly one canonical block
+  * Fix: preserve existing backups while repairing already-patched files
+  * Tests: reproduce and heal a three-copy QemuServer fixture
+  * Supersedes 0.3.17 and 0.3.18 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 09 Jul 2026 20:15:00 +0000
+
 pve-microvm (0.3.18-1) trixie; urgency=critical
 
   * Fix: package upgrades no longer remove the patch stamp before apply

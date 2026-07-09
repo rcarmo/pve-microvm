@@ -55,6 +55,38 @@ EOF
     python3 "$patch_py" >/dev/null
     python3 "$patch_py" >/dev/null
     [ "$(grep -c '^use PVE::QemuServer::MicroVM;$' "$fixture")" -eq 1 ] \
+        && [ "$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$fixture")" -eq 1 ] || {
+        rm -rf "$tmp"
+        return 1
+    }
+
+    # Reproduce an old damaged host with three copies and require the same
+    # patcher to heal it back to one canonical import/delegation block.
+    cat > "$fixture" <<'EOF'
+use PVE::QemuServer::Machine;
+use PVE::QemuServer::MicroVM;
+use PVE::QemuServer::MicroVM;
+use PVE::QemuServer::MicroVM;
+
+sub config_to_command {
+    # pve-microvm: delegate to microvm command builder
+    if (PVE::QemuServer::MicroVM::is_microvm(($_[2]))) {
+        return PVE::QemuServer::MicroVM::microvm_config_to_command(@_);
+    }
+    # pve-microvm: delegate to microvm command builder
+    if (PVE::QemuServer::MicroVM::is_microvm(($_[2]))) {
+        return PVE::QemuServer::MicroVM::microvm_config_to_command(@_);
+    }
+    # pve-microvm: delegate to microvm command builder
+    if (PVE::QemuServer::MicroVM::is_microvm(($_[2]))) {
+        return PVE::QemuServer::MicroVM::microvm_config_to_command(@_);
+    }
+    my ($storecfg, $vmid, $conf) = @_;
+    return [];
+}
+EOF
+    python3 "$patch_py" >/dev/null
+    [ "$(grep -c '^use PVE::QemuServer::MicroVM;$' "$fixture")" -eq 1 ] \
         && [ "$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$fixture")" -eq 1 ]
     local rc=$?
     rm -rf "$tmp"
