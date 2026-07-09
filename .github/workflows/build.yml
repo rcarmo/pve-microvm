@@ -48,7 +48,7 @@ jobs:
           path: |
             kernel/vmlinuz-microvm
             kernel/initrd-microvm
-          retention-days: 90
+          retention-days: 7
 
   build-deb:
     name: Build Debian package
@@ -91,7 +91,7 @@ jobs:
         with:
           name: pve-microvm-deb
           path: dist/pve-microvm_*.deb
-          retention-days: 90
+          retention-days: 7
 
   release:
     name: Create GitHub Release
