@@ -11,12 +11,17 @@ case "$1" in
         # Enable early-boot service to ensure patches survive reboots
         systemctl daemon-reload 2>/dev/null || true
         systemctl enable pve-microvm-early.service 2>/dev/null || true
+        # pvedaemon is a long-lived Perl process and otherwise keeps the old
+        # MicroVM.pm loaded for UI/API/pvesh requests after package upgrades.
+        systemctl try-restart pvedaemon.service 2>/dev/null || true
         ;;
     triggered)
         # qemu-server changed — apply if its files were replaced. The patcher
         # checks the actual markers as well as the stamp.
         echo "pve-microvm: qemu-server changed, checking patches..."
         /usr/share/pve-microvm/pve-microvm-patch apply
+        # Reload the command builder used by UI/API/pvesh VM starts.
+        systemctl try-restart pvedaemon.service 2>/dev/null || true
         ;;
 esac
 

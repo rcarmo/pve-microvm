@@ -72,4 +72,4 @@
 - `valid_drive_names()` returns 0 at runtime on qemu-server 9.1.6
 - `drive_is_cdrom($drive, 1)` excluded cloud-init from detection
 - dpkg trigger loop (interest-noawait)
-- postinst now always reverts+reapplies on upgrade
+- postinst refreshes deployed files idempotently on upgrade without restoring stale backups

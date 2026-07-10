@@ -1,3 +1,13 @@
+pve-microvm (0.3.20-1) trixie; urgency=high
+
+  * Fix: reload pvedaemon after package configure and qemu-server triggers
+  * Fix: UI, API, pvesh, and automation starts now load the new MicroVM.pm
+  * Tests: require pvedaemon reload in both postinst patch paths
+  * Docs: explain long-lived command-builder caching and upgrade behaviour
+  * Supersedes 0.3.17 through 0.3.19 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Fri, 10 Jul 2026 06:05:00 +0000
+
 pve-microvm (0.3.19-1) trixie; urgency=critical
 
   * Fix: detect duplicate historical QemuServer import/delegation blocks

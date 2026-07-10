@@ -229,6 +229,7 @@ run_test "patch script has stamp/idempotency guard" assert_file_contains tools/p
 run_test "patch script delegates config_to_command once per apply path" assert_file_contains tools/pve-microvm-patch 'delegate to microvm command builder'
 run_test "postinst never reverts before applying" assert_file_not_contains debian/pve-microvm.postinst 'pve-microvm-patch revert|cmd_revert| revert'
 run_test "postinst does not delete patch stamp" assert_file_not_contains debian/pve-microvm.postinst 'rm -f /usr/share/pve-microvm/\.applied'
+run_test "postinst reloads pvedaemon after configure" bash -c "[ \"\$(grep -c 'systemctl try-restart pvedaemon.service' debian/pve-microvm.postinst)\" -eq 2 ]"
 run_test "patcher refreshes module on package upgrade" assert_file_contains tools/pve-microvm-patch 'patches already applied; refreshing module and UI'
 run_test "QemuServer patch insertion is idempotent" test_qemuserver_patch_idempotency
 run_test "early service runs before pvedaemon and pve-guests" bash -c "grep -q 'Before=.*pvedaemon.service' tools/pve-microvm-early.service && grep -q 'Before=.*pve-guests.service' tools/pve-microvm-early.service"

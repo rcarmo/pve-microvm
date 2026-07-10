@@ -1,4 +1,13 @@
-# pve-microvm v0.3.19
+# pve-microvm v0.3.20
+
+## API/UI command-builder reload
+
+- Package configure and qemu-server trigger paths now run
+  `systemctl try-restart pvedaemon.service` after applying or refreshing files.
+- This ensures UI, API, `pvesh`, and automation starts use the newly installed
+  `MicroVM.pm`; long-lived pvedaemon workers previously retained the old module.
+- Existing running microVMs are not interrupted. They still need an intentional
+  restart when their QEMU process must gain newly added command-line options.
 
 ## Upgrade safety
 
@@ -15,7 +24,7 @@
 - The CI suite executes the embedded QemuServer patcher twice against a fixture
   and requires exactly one import and one delegation block.
 
-This release supersedes v0.3.17 and v0.3.18 for deployment.
+This release supersedes v0.3.17 through v0.3.19 for deployment.
 
 ## Guest lifecycle fixes
 

@@ -149,8 +149,9 @@ original `qemu-server` files. No VMs, configs, or data are affected.
 
 The package includes a dpkg trigger that watches for changes to the
 patched files. When `qemu-server` is upgraded, the trigger automatically
-re-applies the patches. Tested with the qemu-server 9.1.6 → 9.1.8
-upgrade — patches reapply cleanly and all 12 distros continue to work.
+re-applies the patches and reloads `pvedaemon` so UI/API VM starts use the new
+command builder. Tested with the qemu-server 9.1.6 → 9.1.8 upgrade — patches
+reapply cleanly and all 12 distros continue to work.
 
 You can also manually re-apply with:
 

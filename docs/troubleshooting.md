@@ -58,7 +58,10 @@ could power off correctly while QEMU remained in `paused (shutdown)` because it
 runs with `-no-shutdown`.
 
 Upgrade `pve-microvm`, restart the VM so the new QEMU command line is used, and
-verify the qmeventd monitor is present:
+verify the qmeventd monitor is present. Since v0.3.20, package installation also
+reloads `pvedaemon`; this is required because its long-lived Perl process would
+otherwise keep the previous `MicroVM.pm` for UI, API, `pvesh`, and automation
+requests. Fresh `qm` processes do not have that cache.
 
 ```bash
 qm showcmd <vmid> --pretty | grep -E 'qmp-event|qmeventd.sock'
