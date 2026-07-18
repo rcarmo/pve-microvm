@@ -211,6 +211,8 @@ run_test "microVM command includes qmp-event monitor" assert_file_contains tools
 run_test "qmeventd supports QEMU 9.2 reconnect-ms" assert_file_contains tools/MicroVM.pm 'reconnect-ms=5000'
 run_test "qmeventd keeps older QEMU reconnect fallback" assert_file_contains tools/MicroVM.pm 'reconnect=5'
 run_test "apt templates install dbus for guest shutdown" assert_file_contains tools/pve-microvm-template 'PKGS=.*dbus'
+run_test "templates use packaged guest-agent service" bash -c "[ \"\$(grep -c 'systemctl unmask qemu-guest-agent.service' tools/pve-microvm-template)\" -eq 2 ]"
+run_test "templates do not create competing guest agent" assert_file_not_contains tools/pve-microvm-template 'ExecStart=.*qemu-ga.*vport1p1|systemctl mask qemu-guest-agent.service'
 run_test "special templates do not hardcode vmbr0" assert_file_not_contains tools/pve-microvm-template 'bridge=vmbr0'
 
 log "Kernel config contracts"

@@ -699,9 +699,11 @@ STATICEOF
 
     if [ "$INSTALL_AGENT" -eq 1 ]; then
         chroot "$ROOTFS_DIR" bash -c '
-            systemctl mask qemu-guest-agent.service 2>/dev/null || true
-            printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
-            systemctl enable microvm-agent.service 2>/dev/null || true
+            # Use the packaged device-bound service. A second custom qemu-ga
+            # would contend for /dev/vport1p1 and restart forever.
+            systemctl disable microvm-agent.service 2>/dev/null || true
+            rm -f /etc/systemd/system/microvm-agent.service
+            systemctl unmask qemu-guest-agent.service 2>/dev/null || true
         ' 2>/dev/null || true
     fi
 
@@ -822,9 +824,11 @@ DHCPEOF
     fi
     if [ "$INSTALL_AGENT" -eq 1 ]; then
         chroot "$ROOTFS_DIR" bash -c '
-            systemctl mask qemu-guest-agent.service 2>/dev/null || true
-            printf "[Unit]\nDescription=QEMU Guest Agent for microvm\nAfter=multi-user.target\n\n[Service]\nExecStart=-/usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/microvm-agent.service
-            systemctl enable microvm-agent.service 2>/dev/null || true
+            # Use the packaged device-bound service. A second custom qemu-ga
+            # would contend for /dev/vport1p1 and restart forever.
+            systemctl disable microvm-agent.service 2>/dev/null || true
+            rm -f /etc/systemd/system/microvm-agent.service
+            systemctl unmask qemu-guest-agent.service 2>/dev/null || true
         ' 2>/dev/null || true
     fi
 

@@ -13,11 +13,23 @@ networkd never claims it.
 **Workaround**: A `microvm-dhcp.service` runs `dhclient -4 eth0` at boot
 as a reliable fallback. DHCP works instantly via dhclient.
 
-## Guest agent startup delay
+## Competing guest-agent services in older templates
 
-The guest agent takes 30-120 seconds to start on slow hardware (e.g. z83ii).
-The systemd override uses `Restart=always` with `RestartSec=5`.
-`qm agent <vmid> ping` succeeds once the agent connects to `/dev/vport1p1`.
+Older templates created `microvm-agent.service` and masked the packaged
+`qemu-guest-agent.service`. If the package service later becomes active too,
+the custom agent loops because `/dev/vport1p1` is already in use. Keep the
+packaged device-bound service and remove the legacy unit:
+
+```bash
+systemctl disable --now microvm-agent.service
+rm -f /etc/systemd/system/microvm-agent.service
+systemctl unmask qemu-guest-agent.service
+systemctl daemon-reload
+systemctl restart qemu-guest-agent.service
+```
+
+Current templates use only `qemu-guest-agent.service`, which binds to
+`/dev/virtio-ports/org.qemu.guest_agent.0` when the virtio port appears.
 
 ## Serial console
 
