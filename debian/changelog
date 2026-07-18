@@ -1,3 +1,14 @@
+pve-microvm (0.3.21-1) trixie; urgency=high
+
+  * Fix: use the packaged device-bound QEMU guest-agent service in templates
+  * Fix: stop generating a competing microvm-agent service on /dev/vport1p1
+  * Templates: remove legacy custom unit and unmask qemu-guest-agent
+  * Tests: prevent dual guest-agent configuration in apt and RPM paths
+  * Docs: add remediation for existing guests with agent restart loops
+  * Supersedes 0.3.17 through 0.3.20 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 18 Jul 2026 11:05:00 +0000
+
 pve-microvm (0.3.20-1) trixie; urgency=high
 
   * Fix: reload pvedaemon after package configure and qemu-server triggers

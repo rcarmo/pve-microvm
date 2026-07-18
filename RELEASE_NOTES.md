@@ -1,4 +1,14 @@
-# pve-microvm v0.3.20
+# pve-microvm v0.3.21
+
+## Guest-agent service fix
+
+- New apt- and RPM-based templates now use the packaged, device-bound
+  `qemu-guest-agent.service` exclusively.
+- Stop generating a competing `microvm-agent.service` that could loop forever
+  when both agents attempted to open `/dev/vport1p1`.
+- Template creation removes the obsolete custom unit and unmasks the packaged
+  service, making the operation safe for reused root filesystems.
+- Add regression tests and remediation guidance for older affected guests.
 
 ## API/UI command-builder reload
 
@@ -24,7 +34,7 @@
 - The CI suite executes the embedded QemuServer patcher twice against a fixture
   and requires exactly one import and one delegation block.
 
-This release supersedes v0.3.17 through v0.3.19 for deployment.
+This release supersedes v0.3.17 through v0.3.20 for deployment.
 
 ## Guest lifecycle fixes
 
