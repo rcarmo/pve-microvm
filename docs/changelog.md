@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Repair empty or dangling OCI `/etc/resolv.conf` files before chroot package installation.
+- Fail template builds when apt, apk, dnf, microdnf, tdnf, or yum package installation fails instead of publishing a bare rootfs.
+- Use NetworkManager with an autoconnect DHCP profile and full `util-linux` on Enterprise Linux 8/9/10; remove the unavailable `dhclient` fallback from that path.
+- Add regression coverage for resolver repair, Enterprise Linux detection and package/service contracts.
+
 ## v0.3.9 (2026-05-15)
 
 - Kernel overlay: add BPF_SYSCALL + BPF_JIT for Docker/runc support

@@ -36,6 +36,40 @@ assert_file_not_contains() {
     ! grep -Eq "$pattern" "$file"
 }
 
+test_template_rootfs_helpers() {
+    local tmp host_resolv
+    tmp=$(mktemp -d)
+    host_resolv=$(cat /etc/resolv.conf 2>/dev/null || true)
+    # shellcheck disable=SC1091
+    PVE_MICROVM_TEST_HELPERS_ONLY=1 source tools/pve-microvm-template
+
+    mkdir -p "$tmp/empty/etc"
+    : > "$tmp/empty/etc/resolv.conf"
+    ensure_rootfs_resolver "$tmp/empty"
+    [ -s "$tmp/empty/etc/resolv.conf" ] || { rm -rf "$tmp"; return 1; }
+
+    mkdir -p "$tmp/dangling/etc"
+    ln -s /run/systemd/resolve/stub-resolv.conf "$tmp/dangling/etc/resolv.conf"
+    ensure_rootfs_resolver "$tmp/dangling"
+    [ -f "$tmp/dangling/etc/resolv.conf" ] \
+        && [ ! -L "$tmp/dangling/etc/resolv.conf" ] \
+        && [ -s "$tmp/dangling/etc/resolv.conf" ] || { rm -rf "$tmp"; return 1; }
+
+    mkdir -p "$tmp/alma/etc"
+    printf 'ID="almalinux"\nID_LIKE="rhel centos fedora"\n' > "$tmp/alma/etc/os-release"
+    is_enterprise_linux_rootfs "$tmp/alma" \
+        && [ "$(rpm_base_packages "$tmp/alma")" = "iproute NetworkManager systemd cloud-init util-linux" ] \
+        || { rm -rf "$tmp"; return 1; }
+
+    mkdir -p "$tmp/photon/etc"
+    printf 'ID=photon\n' > "$tmp/photon/etc/os-release"
+    ! is_enterprise_linux_rootfs "$tmp/photon" \
+        && [ "$(rpm_base_packages "$tmp/photon")" = "iproute dhcp-client systemd cloud-init util-linux" ] \
+        || { rm -rf "$tmp"; return 1; }
+
+    rm -rf "$tmp"
+}
+
 test_qemuserver_patch_idempotency() {
     local tmp fixture patch_py
     tmp=$(mktemp -d)
@@ -211,6 +245,10 @@ run_test "microVM command includes qmp-event monitor" assert_file_contains tools
 run_test "qmeventd supports QEMU 9.2 reconnect-ms" assert_file_contains tools/MicroVM.pm 'reconnect-ms=5000'
 run_test "qmeventd keeps older QEMU reconnect fallback" assert_file_contains tools/MicroVM.pm 'reconnect=5'
 run_test "apt templates install dbus for guest shutdown" assert_file_contains tools/pve-microvm-template 'PKGS=.*dbus'
+run_test "template repairs empty and dangling resolv.conf" test_template_rootfs_helpers
+run_test "template package transactions fail closed" assert_file_not_contains tools/pve-microvm-template '(apt-get|apk|dnf|microdnf|tdnf|yum).*install.*\|\| true'
+run_test "Enterprise Linux uses NetworkManager" assert_file_contains tools/pve-microvm-template 'systemctl enable NetworkManager\.service'
+run_test "Enterprise Linux installs full util-linux" assert_file_contains tools/pve-microvm-template 'NetworkManager systemd cloud-init util-linux'
 run_test "templates use packaged guest-agent service" bash -c "[ \"\$(grep -c 'systemctl unmask qemu-guest-agent.service' tools/pve-microvm-template)\" -eq 2 ]"
 run_test "templates do not create competing guest agent" assert_file_not_contains tools/pve-microvm-template 'ExecStart=.*qemu-ga.*vport1p1|systemctl mask qemu-guest-agent.service'
 run_test "special templates do not hardcode vmbr0" assert_file_not_contains tools/pve-microvm-template 'bridge=vmbr0'

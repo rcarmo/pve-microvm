@@ -51,6 +51,49 @@ APPEND="console=ttyS0 root=/dev/vda rw quiet"
 log() { echo "[$PROG] $*"; }
 die() { echo "[$PROG] ERROR: $*" >&2; exit 1; }
 
+ensure_rootfs_resolver() {
+    local rootfs="$1"
+    mkdir -p "$rootfs/etc"
+    # OCI images commonly ship an empty file or a symlink whose target does
+    # not exist inside the unpacked rootfs. Both break package transactions.
+    if [ -L "$rootfs/etc/resolv.conf" ] || [ ! -s "$rootfs/etc/resolv.conf" ]; then
+        rm -f "$rootfs/etc/resolv.conf"
+        if [ -s /etc/resolv.conf ]; then
+            cp -L /etc/resolv.conf "$rootfs/etc/resolv.conf"
+        else
+            echo "nameserver 1.1.1.1" > "$rootfs/etc/resolv.conf"
+        fi
+    fi
+}
+
+is_enterprise_linux_rootfs() {
+    local rootfs="$1" ids
+    ids=$(awk -F= '/^(ID|ID_LIKE)=/ {
+        value=$2
+        gsub(/"/, "", value)
+        printf "%s ", tolower(value)
+    }' "$rootfs/etc/os-release" 2>/dev/null) || return 1
+    case " $ids " in
+        *" rhel "*|*" centos "*|*" fedora "*|*" rocky "*|*" almalinux "*|*" ol ") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+rpm_base_packages() {
+    local rootfs="$1"
+    if is_enterprise_linux_rootfs "$rootfs"; then
+        echo "iproute NetworkManager systemd cloud-init util-linux"
+    else
+        echo "iproute dhcp-client systemd cloud-init util-linux"
+    fi
+}
+
+# Allow the network/package policy helpers to be exercised without touching
+# PVE or pulling an image. This is intentionally undocumented user surface.
+if [ "${PVE_MICROVM_TEST_HELPERS_ONLY:-0}" = 1 ]; then
+    return 0 2>/dev/null || exit 0
+fi
+
 usage() {
     cat <<EOF
 Usage: $PROG [OPTIONS]
@@ -229,7 +272,17 @@ log "  Disk:    $DISK_SIZE"
 # Work directory
 mkdir -p "$CACHE_DIR"
 WORKDIR=$(mktemp -d "$CACHE_DIR/build.XXXXXX")
-trap 'rm -rf "$WORKDIR"' EXIT
+ROOTFS_DIR=""
+cleanup_build() {
+    if [ -n "$ROOTFS_DIR" ]; then
+        umount "$ROOTFS_DIR/dev/pts" 2>/dev/null || true
+        umount "$ROOTFS_DIR/dev" 2>/dev/null || true
+        umount "$ROOTFS_DIR/sys" 2>/dev/null || true
+        umount "$ROOTFS_DIR/proc" 2>/dev/null || true
+    fi
+    rm -rf "$WORKDIR"
+}
+trap cleanup_build EXIT
 
 # ── 9Front special case: download pre-built qcow2 directly ──────
 if echo "$IMAGE" | grep -qi '^9front'; then
@@ -601,7 +654,7 @@ SVCUNIT
 fi
 
 # DNS defaults (needed for chroot package install)
-[ -f "$ROOTFS_DIR/etc/resolv.conf" ] || echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/etc/resolv.conf"
+ensure_rootfs_resolver "$ROOTFS_DIR"
 
 # Step 4: Install essential packages via chroot
 # trixie-slim has no networking tools — install them at build time
@@ -633,11 +686,13 @@ APTSRC
     [ "$INSTALL_AGENT" -eq 1 ] && PKGS="$PKGS qemu-guest-agent"
     log "Packages: $PKGS"
 
-    # Install packages
-    chroot "$ROOTFS_DIR" /bin/bash -c "
+    # Install packages. Keep package-manager failures visible and fatal; a
+    # template without its requested base packages is not usable output.
+    if ! chroot "$ROOTFS_DIR" /bin/bash -c "
+        set -e
         export DEBIAN_FRONTEND=noninteractive
-        apt-get update -qq 2>/dev/null
-        apt-get install -y -qq --no-install-recommends $PKGS 2>/dev/null
+        apt-get update -qq
+        apt-get install -y -qq --no-install-recommends $PKGS
 
         # Enable essential services
         systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
@@ -689,7 +744,9 @@ STATICEOF
         # Clean up
         apt-get clean 2>/dev/null || true
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-    " 2>&1 || log "warning: chroot package install had errors"
+    "; then
+        die "apt package installation failed for $IMAGE"
+    fi
 
     # Conditional services -- run as separate chroot commands
     # so we can use shell variables
@@ -721,17 +778,13 @@ elif [ -f "$ROOTFS_DIR/sbin/apk" ] || [ -f "$ROOTFS_DIR/usr/bin/apk" ]; then
     mount --bind /sys "$ROOTFS_DIR/sys" 2>/dev/null || true
     mount --bind /dev "$ROOTFS_DIR/dev" 2>/dev/null || true
 
-    chroot "$ROOTFS_DIR" /bin/sh -c '
-        # Alpine: install essentials via apk
-        apk update 2>/dev/null
-        APKPKGS="dhclient socat cloud-init"
-    ' 2>&1 || true
-
     # Conditional Alpine packages
     APKPKGS="dhclient socat cloud-init"
     [ "$INSTALL_SSH" -eq 1 ] && APKPKGS="$APKPKGS openssh"
     [ "$INSTALL_AGENT" -eq 1 ] && APKPKGS="$APKPKGS qemu-guest-agent"
-    chroot "$ROOTFS_DIR" /bin/sh -c "apk add --no-cache $APKPKGS 2>/dev/null" || true
+    if ! chroot "$ROOTFS_DIR" /bin/sh -c "set -e; apk update; apk add --no-cache $APKPKGS"; then
+        die "apk package installation failed for $IMAGE"
+    fi
 
     chroot "$ROOTFS_DIR" /bin/sh -c '
         # Enable services via OpenRC
@@ -773,26 +826,49 @@ elif [ -f "$ROOTFS_DIR/usr/bin/dnf" ] || [ -f "$ROOTFS_DIR/usr/bin/microdnf" ] |
         PKG_CMD="yum"
     fi
 
-    # Build package list
-    DNFPKGS="iproute dhcp-client systemd cloud-init"
+    # Enterprise Linux 8/9/10 uses NetworkManager and does not consistently
+    # provide the historical dhcp-client package. Full util-linux supplies
+    # /usr/bin/login for the serial console; util-linux-core does not.
+    IS_ENTERPRISE_LINUX=0
+    is_enterprise_linux_rootfs "$ROOTFS_DIR" && IS_ENTERPRISE_LINUX=1
+    DNFPKGS=$(rpm_base_packages "$ROOTFS_DIR")
     [ "$INSTALL_SSH" -eq 1 ] && DNFPKGS="$DNFPKGS openssh-server"
     [ "$INSTALL_AGENT" -eq 1 ] && DNFPKGS="$DNFPKGS qemu-guest-agent"
     log "Packages ($PKG_CMD): $DNFPKGS"
 
-    chroot "$ROOTFS_DIR" /bin/bash -c "
-        $PKG_CMD install -y $DNFPKGS 2>/dev/null || true
+    # Package installation is part of template correctness. Do not suppress a
+    # failed transaction and publish a bare, superficially successful rootfs.
+    if ! chroot "$ROOTFS_DIR" /bin/bash -c "$PKG_CMD install -y $DNFPKGS"; then
+        die "$PKG_CMD package installation failed for $IMAGE"
+    fi
 
-        # Enable services
-        systemctl enable systemd-networkd 2>/dev/null || true
-        systemctl enable cloud-init 2>/dev/null || true
+    if [ "$IS_ENTERPRISE_LINUX" -eq 1 ]; then
+        chroot "$ROOTFS_DIR" /bin/bash -c '
+            systemctl enable NetworkManager.service 2>/dev/null || true
+            systemctl enable cloud-init.service 2>/dev/null || true
+            rm -f /etc/systemd/system/microvm-dhcp.service
+            systemctl disable microvm-dhcp.service 2>/dev/null || true
+            install -d -m 700 /etc/NetworkManager/system-connections
+            cat > /etc/NetworkManager/system-connections/microvm-dhcp.nmconnection << "NMEOF"
+[connection]
+id=microvm-dhcp
+type=ethernet
+autoconnect=true
 
-        # Serial console
-        systemctl disable serial-getty@ttyS0.service 2>/dev/null || true
-        printf '[Unit]\\nDescription=microvm serial console\\nAfter=systemd-user-sessions.service\\n\\n[Service]\\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\\nRestart=always\\nRestartSec=0\\nType=idle\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/microvm-console.service
-        systemctl enable microvm-console.service 2>/dev/null || true
+[ipv4]
+method=auto
 
-        # DHCP fallback
-        cat > /etc/systemd/system/microvm-dhcp.service << 'DHCPEOF'
+[ipv6]
+method=auto
+NMEOF
+            chmod 600 /etc/NetworkManager/system-connections/microvm-dhcp.nmconnection
+        '
+    else
+        chroot "$ROOTFS_DIR" /bin/bash -c '
+            systemctl enable systemd-networkd.service 2>/dev/null || true
+            systemctl enable cloud-init.service 2>/dev/null || true
+
+            cat > /etc/systemd/system/microvm-dhcp.service << "DHCPEOF"
 [Unit]
 Description=DHCP fallback on eth0
 After=network.target cloud-init.service
@@ -802,7 +878,7 @@ ConditionPathExists=!/etc/systemd/network/10-cloud-init-eth0.network
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStartPre=/bin/sh -c 'test ! -f /run/cloud-init/network-config-applied'
+ExecStartPre=/bin/sh -c "test ! -f /run/cloud-init/network-config-applied"
 ExecStartPre=/sbin/ip link set eth0 up
 ExecStart=/usr/sbin/dhclient -4 eth0
 ExecStop=/usr/sbin/dhclient -r eth0
@@ -810,14 +886,22 @@ ExecStop=/usr/sbin/dhclient -r eth0
 [Install]
 WantedBy=multi-user.target
 DHCPEOF
-        systemctl enable microvm-dhcp.service 2>/dev/null || true
+            systemctl enable microvm-dhcp.service 2>/dev/null || true
+        '
+    fi
+
+    chroot "$ROOTFS_DIR" /bin/bash -c "
+        # Serial console
+        systemctl disable serial-getty@ttyS0.service 2>/dev/null || true
+        printf '[Unit]\\nDescription=microvm serial console\\nAfter=systemd-user-sessions.service\\n\\n[Service]\\nExecStart=-/sbin/agetty --autologin root --noclear ttyS0 linux\\nRestart=always\\nRestartSec=0\\nType=idle\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/microvm-console.service
+        systemctl enable microvm-console.service 2>/dev/null || true
 
         # Set empty root password
         sed -i 's|^root:[^:]*:|root::|' /etc/shadow 2>/dev/null || true
 
         # Clean
         $PKG_CMD clean all 2>/dev/null || true
-    " 2>&1 || log "warning: chroot package install had errors"
+    "
 
     if [ "$INSTALL_SSH" -eq 1 ]; then
         chroot "$ROOTFS_DIR" systemctl enable sshd 2>/dev/null || true
