@@ -1,3 +1,15 @@
+pve-microvm (0.3.22-1) trixie; urgency=high
+
+  * Fix: repair empty or dangling OCI resolv.conf before chroot installs
+  * Fix: fail template builds when package-manager transactions fail
+  * Templates: use NetworkManager DHCP and full util-linux on EL8/9/10
+  * Templates: remove the unavailable Enterprise Linux dhclient fallback
+  * Tests: cover resolver repair, EL detection and fail-closed installs
+  * Validated with an AlmaLinux 10.2 full clone on PVE 9.2.6
+  * Supersedes 0.3.17 through 0.3.21 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Mon, 24 Aug 2026 07:00:00 +0000
+
 pve-microvm (0.3.21-1) trixie; urgency=high
 
   * Fix: use the packaged device-bound QEMU guest-agent service in templates

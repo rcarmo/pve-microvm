@@ -1,4 +1,15 @@
-# pve-microvm v0.3.21
+# pve-microvm v0.3.22
+
+## Enterprise Linux template fixes
+
+- Repair empty or dangling OCI `/etc/resolv.conf` before chroot package installation, restoring DNS for affected image families.
+- Treat apt, apk, dnf, microdnf, tdnf, and yum transaction failures as fatal instead of publishing a bare but apparently successful template.
+- Use NetworkManager with an autoconnect DHCP profile on Enterprise Linux 8, 9, and 10.
+- Install full `util-linux` so `/usr/bin/login` exists for the serial console.
+- Remove the unavailable `dhclient` fallback from Enterprise Linux templates.
+- Add regression tests for resolver repair, Enterprise Linux detection, package selection, and fail-closed transactions.
+
+Live validation used AlmaLinux 10.2 on PVE 9.2.6: a full clone booted with root on `/dev/vda`, NetworkManager and SSH active, a responsive QEMU guest agent, working DNS, and no legacy DHCP unit.
 
 ## Guest-agent service fix
 
@@ -34,7 +45,7 @@
 - The CI suite executes the embedded QemuServer patcher twice against a fixture
   and requires exactly one import and one delegation block.
 
-This release supersedes v0.3.17 through v0.3.20 for deployment.
+This release supersedes v0.3.17 through v0.3.21 for deployment.
 
 ## Guest lifecycle fixes
 
