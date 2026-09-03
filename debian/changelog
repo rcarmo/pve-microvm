@@ -1,3 +1,15 @@
+pve-microvm (0.3.23-1) trixie; urgency=high
+
+  * Fix: detect managed disk formats with PVE::Storage::parse_volname
+  * Fix: boot file-backed qcow2 linked clones with format=qcow2
+  * Safety: fail unknown format detection instead of defaulting to raw
+  * Tests: execute raw, qcow2, RBD, override, and failure format cases
+  * Docs: document backend formats and scsi0/vda, scsi1/vdb ordering
+  * Validated with a live file-backed qcow2 linked-clone boot on PVE 9.2.x
+  * Supersedes 0.3.17 through 0.3.22 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 03 Sep 2026 15:30:00 +0000
+
 pve-microvm (0.3.22-1) trixie; urgency=high
 
   * Fix: repair empty or dangling OCI resolv.conf before chroot installs

@@ -1,4 +1,14 @@
-# pve-microvm v0.3.22
+# pve-microvm v0.3.23
+
+## Linked-clone disk format fix
+
+- Detect PVE-managed disk formats through `PVE::Storage::parse_volname()` instead of calling the nonexistent `PVE::Storage::volume_format()` API.
+- Boot file-backed qcow2 linked clones with `format=qcow2`; LVM-thin and ZFS volumes remain raw, and RBD remains `format=rbd`.
+- Fail command generation when PVE cannot identify a managed volume format rather than silently treating it as raw and risking writes through the wrong QEMU block driver.
+- Add executable Perl tests for raw, qcow2 linked clones, RBD, explicit format overrides, missing metadata, and parser failure.
+- Document storage-specific formats and the deterministic device order: `scsi0` is `/dev/vda` root, while optional cloud-init `scsi1` is `/dev/vdb`.
+
+Live validation on PVE 9.2.x created a file-backed qcow2 template and linked clone, confirmed `parse_volname()` and `qm showcmd` both selected qcow2, and booted the clone successfully through its serial console.
 
 ## Enterprise Linux template fixes
 
@@ -45,7 +55,7 @@ Live validation used AlmaLinux 10.2 on PVE 9.2.6: a full clone booted with root 
 - The CI suite executes the embedded QemuServer patcher twice against a fixture
   and requires exactly one import and one delegation block.
 
-This release supersedes v0.3.17 through v0.3.21 for deployment.
+This release supersedes v0.3.17 through v0.3.22 for deployment.
 
 ## Guest lifecycle fixes
 
