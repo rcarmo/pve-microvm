@@ -112,15 +112,44 @@ qm create <vmid> --machine microvm --memory 256
 pve-oci-import --image alpine:3.21 --vmid <vmid>
 ```
 
-## No network / no guest agent / no balloon
+## Linked qcow2 clone drops into the initrd or BusyBox
 
-If `virtio_net`, `virtio_console`, or `virtio_balloon` aren't probing,
-the kernel may have been built without these drivers. Check:
+Check the format passed to QEMU:
 
 ```bash
-strings /usr/share/pve-microvm/vmlinuz | grep -c virtio_net
-# Should be > 0
+qm showcmd <vmid> --pretty | grep 'drive-scsi0'
 ```
 
-If zero, rebuild the kernel — the PVE overlay in
-`kernel/pve-microvm-overlay.config` forces these to `=y`.
+A file-backed qcow2 clone must include `format=qcow2`; LVM-thin and ZFS block
+volumes normally use `format=raw`. Releases before v0.3.23 could call a
+nonexistent PVE format API, swallow the error, and pass a qcow2 overlay as raw.
+Do not rename the image or change `root=/dev/vda` as a workaround.
+
+With cloud-init, the supported order is:
+
+```text
+scsi0 -> /dev/vda  root filesystem
+scsi1 -> /dev/vdb  cloud-init data
+```
+
+Collect `qm config`, `qm showcmd --pretty`, `pvesm status`, and
+`PVE::Storage::parse_volname()` output when diagnosing a backend-specific
+format mismatch.
+
+## No network / no guest agent / no balloon
+
+Check the QEMU devices, guest character devices, and release build log rather
+than searching compressed `vmlinuz` strings:
+
+```bash
+qm showcmd <vmid> --pretty | grep -E 'virtio-(net|serial|balloon)'
+ls -l /dev/vport* /dev/virtio-ports/*
+```
+
+`/dev/vport1p1` proves that the virtio-console driver is active. The named
+`/dev/virtio-ports/org.qemu.guest_agent.0` symlink additionally depends on guest
+udev processing and may be absent even when the kernel driver works.
+
+The release workflow prints the final values of `CONFIG_VIRTIO_NET`,
+`CONFIG_VIRTIO_CONSOLE`, and `CONFIG_VIRTIO_BALLOON` after `olddefconfig`; all
+must be `=y`. The overlay is in `kernel/pve-microvm-overlay.config`.

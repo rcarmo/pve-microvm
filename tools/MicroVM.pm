@@ -110,6 +110,19 @@ and $vollist is an arrayref of storage volume IDs used.
 
 =cut
 
+sub _managed_volume_format {
+    my ($storecfg, $volid, $explicit_format, $is_rbd) = @_;
+
+    return $explicit_format if $explicit_format;
+
+    my (undef, undef, undef, undef, undef, undef, $detected_format) =
+        PVE::Storage::parse_volname($storecfg, $volid);
+    die "unable to detect disk format for '$volid'\n"
+        if !$detected_format;
+
+    return $is_rbd ? 'rbd' : $detected_format;
+}
+
 sub microvm_config_to_command {
     my ($storecfg, $vmid, $conf, $defaults, $options) = @_;
 
@@ -305,13 +318,12 @@ sub microvm_config_to_command {
 
             $is_rbd = ($path =~ m/^rbd:/) ? 1 : 0;
 
-            # Determine format: explicit > storage-detected > raw
-            $format = $drive->{format};
-            if (!$format) {
-                eval { $format = PVE::Storage::volume_format($storecfg, $volid); };
-                $format //= 'raw';
-            }
-            $format = 'rbd' if $is_rbd && !$drive->{format};
+            # Determine format: explicit > storage metadata. Do not silently
+            # fall back to raw: passing a qcow2 linked clone to QEMU as raw can
+            # corrupt it as soon as the guest writes to the disk.
+            $format = _managed_volume_format(
+                $storecfg, $volid, $drive->{format}, $is_rbd,
+            );
         }
 
         # Build -drive line

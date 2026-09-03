@@ -84,6 +84,21 @@ args.
 4. Cloud-init ISO included as `/dev/vdb` (needed for config delivery)
 5. Root filesystem labelled `microvm-root` for future LABEL= boot
 
+Cloud-init does not move the root disk in current releases. Keep
+`root=/dev/vda`; the data disk is `/dev/vdb`.
+
+## File-backed linked clone detected as raw (FIXED in v0.3.23)
+
+Releases through v0.3.22 called a nonexistent `PVE::Storage::volume_format()`
+function. Because the call was inside `eval`, the failure was hidden and the
+command builder defaulted to raw. A file-backed qcow2 linked clone was then
+passed to QEMU as `format=raw` and failed to boot.
+
+The command builder now reads the seventh value from
+`PVE::Storage::parse_volname()`, which is PVE's actual volume format metadata.
+Unknown formats and parser failures stop command generation instead of risking
+writes through the wrong block driver. Explicit drive formats still take
+priority, and RBD continues to use `format=rbd`.
 
 ## Docker containers fail: bpf_prog_query not implemented (FIXED in v0.3.9)
 

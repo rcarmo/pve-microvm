@@ -68,6 +68,16 @@ All PVE storage backends work:
 | NFS/CIFS | `/mnt/pve/<store>/images/<vmid>/...` | qcow2/raw |
 | Local dir | `/var/lib/vz/images/<vmid>/...` | qcow2/raw |
 
+For PVE-managed volumes, the command builder obtains the format from
+`PVE::Storage::parse_volname()`. This is required for file-backed linked clones:
+the clone is a qcow2 overlay even when the VM configuration does not contain an
+explicit `format=qcow2`. If PVE cannot identify the format, command generation
+fails rather than passing the disk to QEMU as raw.
+
+Drive order is deterministic. `scsi0` is emitted first and appears as
+`/dev/vda`; an optional cloud-init disk at `scsi1` appears as `/dev/vdb`.
+Adding cloud-init does not require changing `root=/dev/vda`.
+
 ## Patch management
 
 ```bash
