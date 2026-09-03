@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Start the single packaged QEMU guest-agent service against `/dev/vport1p1` so minimal systemd guests do not depend on a missing named udev symlink.
+- Remove legacy custom-agent units, stale drop-ins and service masks during template construction to prevent competing `qemu-ga` processes.
+- Detect the packaged agent binary under `/usr/sbin` or `/usr/bin`, covering Debian/Ubuntu and Enterprise Linux templates.
+- Add rootfs contract tests plus live Debian 13 and AlmaLinux 10.2 guest-agent validation.
 - Detect managed disk formats through `PVE::Storage::parse_volname()` so file-backed qcow2 linked clones boot with the correct QEMU block driver.
 - Fail command generation when PVE cannot identify a managed volume format instead of silently treating it as raw.
 - Document storage-specific formats and the fixed `scsi0` root / `scsi1` cloud-init device order.

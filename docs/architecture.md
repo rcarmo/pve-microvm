@@ -56,6 +56,12 @@ microvm with `pcie=on` uses PCI non-transitional devices:
 | virtiofs | `vhost-user-fs-pci` | `mount -t virtiofs shared /mnt` |
 | Console | ISA serial (`isa-serial=on`) | `/dev/ttyS0` |
 
+The kernel's built-in virtio-console driver creates the direct guest-agent port
+as `/dev/vport1p1`. Minimal root filesystems may not create the optional named
+udev symlink under `/dev/virtio-ports/`, so generated systemd guests start the
+single packaged agent service against the direct character device. The unit
+waits for the port rather than binding to a udev-generated device unit.
+
 ## Storage support
 
 All PVE storage backends work:

@@ -13,23 +13,54 @@ networkd never claims it.
 **Workaround**: A `microvm-dhcp.service` runs `dhclient -4 eth0` at boot
 as a reliable fallback. DHCP works instantly via dhclient.
 
-## Competing guest-agent services in older templates
+## Guest-agent port discovery (FIXED in v0.3.24)
 
-Older templates created `microvm-agent.service` and masked the packaged
-`qemu-guest-agent.service`. If the package service later becomes active too,
-the custom agent loops because `/dev/vport1p1` is already in use. Keep the
-packaged device-bound service and remove the legacy unit:
+The shipped kernel includes `CONFIG_VIRTIO_CONSOLE=y` and creates
+`/dev/vport1p1`, but minimal guests may not replay the udev event that creates
+`/dev/virtio-ports/org.qemu.guest_agent.0` after the initrd hand-off. The
+vendor `qemu-guest-agent.service` waits for that named device and stays
+inactive even though the driver and direct port work.
 
-```bash
-systemctl disable --now microvm-agent.service
-rm -f /etc/systemd/system/microvm-agent.service
-systemctl unmask qemu-guest-agent.service
-systemctl daemon-reload
-systemctl restart qemu-guest-agent.service
+Older templates worked around this with a separate `microvm-agent.service`.
+If the vendor unit later started too, both processes competed for
+`/dev/vport1p1` and the custom service restarted forever.
+
+Current templates keep exactly one service named `qemu-guest-agent.service`.
+A microVM-specific replacement unit waits up to 60 seconds for
+`/dev/vport1p1`, runs the packaged `qemu-ga` binary against that path, and uses
+`Restart=always` without depending on the named udev symlink.
+
+For an existing Debian/Ubuntu guest, remove the legacy and vendor-device
+assumptions by copying the replacement unit from a newly generated template or
+create this equivalent unit with the correct `qemu-ga` path:
+
+```ini
+[Unit]
+Description=QEMU Guest Agent for microVM
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c 'i=0; while test $i -lt 60; do test -c /dev/vport1p1 && exec /usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1; i=$((i + 1)); sleep 1; done; exit 1'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Current templates use only `qemu-guest-agent.service`, which binds to
-`/dev/virtio-ports/org.qemu.guest_agent.0` when the virtio port appears.
+Then run:
+
+```bash
+systemctl disable --now microvm-agent.service 2>/dev/null || true
+rm -f /etc/systemd/system/microvm-agent.service
+rm -rf /etc/systemd/system/qemu-guest-agent.service.d
+systemctl daemon-reload
+systemctl enable --now qemu-guest-agent.service
+```
+
+Enterprise Linux commonly installs the binary as `/usr/bin/qemu-ga`; verify
+with `command -v qemu-ga` before writing the unit.
 
 ## Serial console
 

@@ -150,6 +150,20 @@ ls -l /dev/vport* /dev/virtio-ports/*
 `/dev/virtio-ports/org.qemu.guest_agent.0` symlink additionally depends on guest
 udev processing and may be absent even when the kernel driver works.
 
+Since v0.3.24, generated systemd guests use one replacement unit named
+`qemu-guest-agent.service`. It waits for `/dev/vport1p1` and starts the packaged
+agent directly, avoiding both the missing-symlink failure and the older
+competing-agent restart loop. Diagnose existing guests with:
+
+```bash
+systemctl status qemu-guest-agent.service microvm-agent.service --no-pager
+ps -ef | grep '[q]emu-ga'
+ls -l /dev/vport* /dev/virtio-ports/*
+```
+
+There must be exactly one `qemu-ga` process. See `docs/known-issues.md` for the
+existing-guest replacement unit and EL binary-path note.
+
 The release workflow prints the final values of `CONFIG_VIRTIO_NET`,
 `CONFIG_VIRTIO_CONSOLE`, and `CONFIG_VIRTIO_BALLOON` after `olddefconfig`; all
 must be `=y`. The overlay is in `kernel/pve-microvm-overlay.config`.

@@ -88,6 +88,46 @@ rpm_base_packages() {
     fi
 }
 
+configure_systemd_guest_agent() {
+    local rootfs="$1" qemu_ga=""
+
+    if [ -x "$rootfs/usr/sbin/qemu-ga" ]; then
+        qemu_ga="/usr/sbin/qemu-ga"
+    elif [ -x "$rootfs/usr/bin/qemu-ga" ]; then
+        qemu_ga="/usr/bin/qemu-ga"
+    else
+        die "qemu-guest-agent is installed but qemu-ga was not found"
+    fi
+
+    # Older templates created a second service which could contend with the
+    # packaged agent for the same port. Keep one service and override only its
+    # device discovery: the initrd hand-off may expose /dev/vport1p1 without
+    # replaying the udev event that creates /dev/virtio-ports/<name>.
+    mkdir -p "$rootfs/etc/systemd/system"
+    rm -f "$rootfs/etc/systemd/system/microvm-agent.service"
+    rm -f "$rootfs/etc/systemd/system/multi-user.target.wants/microvm-agent.service"
+    rm -f "$rootfs/etc/systemd/system/qemu-guest-agent.service"
+    rm -rf "$rootfs/etc/systemd/system/qemu-guest-agent.service.d"
+
+    # Replace the vendor unit by name, keeping one packaged-agent process. A
+    # drop-in is insufficient on Debian because qemu-guest-agent's systemd
+    # generator retains the failed named-device activation state.
+    cat > "$rootfs/etc/systemd/system/qemu-guest-agent.service" <<EOF
+[Unit]
+Description=QEMU Guest Agent for microVM
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c 'i=0; while test \$i -lt 60; do test -c /dev/vport1p1 && exec $qemu_ga --method=virtio-serial --path=/dev/vport1p1; i=\$((i + 1)); sleep 1; done; exit 1'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
 # Allow the network/package policy helpers to be exercised without touching
 # PVE or pulling an image. This is intentionally undocumented user surface.
 if [ "${PVE_MICROVM_TEST_HELPERS_ONLY:-0}" = 1 ]; then
@@ -755,13 +795,10 @@ STATICEOF
     fi
 
     if [ "$INSTALL_AGENT" -eq 1 ]; then
-        chroot "$ROOTFS_DIR" bash -c '
-            # Use the packaged device-bound service. A second custom qemu-ga
-            # would contend for /dev/vport1p1 and restart forever.
-            systemctl disable microvm-agent.service 2>/dev/null || true
-            rm -f /etc/systemd/system/microvm-agent.service
-            systemctl unmask qemu-guest-agent.service 2>/dev/null || true
-        ' 2>/dev/null || true
+        configure_systemd_guest_agent "$ROOTFS_DIR"
+        chroot "$ROOTFS_DIR" systemctl disable microvm-agent.service 2>/dev/null || true
+        chroot "$ROOTFS_DIR" systemctl unmask qemu-guest-agent.service 2>/dev/null || true
+        chroot "$ROOTFS_DIR" systemctl enable qemu-guest-agent.service 2>/dev/null || true
     fi
 
     # Unmount
@@ -907,13 +944,10 @@ DHCPEOF
         chroot "$ROOTFS_DIR" systemctl enable sshd 2>/dev/null || true
     fi
     if [ "$INSTALL_AGENT" -eq 1 ]; then
-        chroot "$ROOTFS_DIR" bash -c '
-            # Use the packaged device-bound service. A second custom qemu-ga
-            # would contend for /dev/vport1p1 and restart forever.
-            systemctl disable microvm-agent.service 2>/dev/null || true
-            rm -f /etc/systemd/system/microvm-agent.service
-            systemctl unmask qemu-guest-agent.service 2>/dev/null || true
-        ' 2>/dev/null || true
+        configure_systemd_guest_agent "$ROOTFS_DIR"
+        chroot "$ROOTFS_DIR" systemctl disable microvm-agent.service 2>/dev/null || true
+        chroot "$ROOTFS_DIR" systemctl unmask qemu-guest-agent.service 2>/dev/null || true
+        chroot "$ROOTFS_DIR" systemctl enable qemu-guest-agent.service 2>/dev/null || true
     fi
 
     umount "$ROOTFS_DIR/dev" 2>/dev/null || true

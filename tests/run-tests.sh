@@ -67,6 +67,35 @@ test_template_rootfs_helpers() {
         && [ "$(rpm_base_packages "$tmp/photon")" = "iproute dhcp-client systemd cloud-init util-linux" ] \
         || { rm -rf "$tmp"; return 1; }
 
+    # Debian-family package path and cleanup of legacy/masked services.
+    mkdir -p "$tmp/debian/usr/sbin" "$tmp/debian/etc/systemd/system/multi-user.target.wants"
+    : > "$tmp/debian/usr/sbin/qemu-ga"
+    chmod +x "$tmp/debian/usr/sbin/qemu-ga"
+    printf 'legacy\n' > "$tmp/debian/etc/systemd/system/microvm-agent.service"
+    ln -s ../microvm-agent.service "$tmp/debian/etc/systemd/system/multi-user.target.wants/microvm-agent.service"
+    ln -s /dev/null "$tmp/debian/etc/systemd/system/qemu-guest-agent.service"
+    mkdir -p "$tmp/debian/etc/systemd/system/qemu-guest-agent.service.d"
+    : > "$tmp/debian/etc/systemd/system/qemu-guest-agent.service.d/stale.conf"
+    configure_systemd_guest_agent "$tmp/debian"
+    grep -q 'exec /usr/sbin/qemu-ga --method=virtio-serial --path=/dev/vport1p1' \
+        "$tmp/debian/etc/systemd/system/qemu-guest-agent.service" \
+        && grep -q '^WantedBy=multi-user.target$' "$tmp/debian/etc/systemd/system/qemu-guest-agent.service" \
+        && grep -q 'test -c /dev/vport1p1' "$tmp/debian/etc/systemd/system/qemu-guest-agent.service" \
+        && ! grep -Eq '^(BindsTo|Requires|ConditionPathExists)=' "$tmp/debian/etc/systemd/system/qemu-guest-agent.service" \
+        && [ ! -e "$tmp/debian/etc/systemd/system/microvm-agent.service" ] \
+        && [ ! -e "$tmp/debian/etc/systemd/system/multi-user.target.wants/microvm-agent.service" ] \
+        && [ ! -e "$tmp/debian/etc/systemd/system/qemu-guest-agent.service.d" ] \
+        || { rm -rf "$tmp"; return 1; }
+
+    # RPM-family package path commonly installs qemu-ga under /usr/bin.
+    mkdir -p "$tmp/rpm/usr/bin"
+    : > "$tmp/rpm/usr/bin/qemu-ga"
+    chmod +x "$tmp/rpm/usr/bin/qemu-ga"
+    configure_systemd_guest_agent "$tmp/rpm"
+    grep -q 'exec /usr/bin/qemu-ga --method=virtio-serial --path=/dev/vport1p1' \
+        "$tmp/rpm/etc/systemd/system/qemu-guest-agent.service" \
+        || { rm -rf "$tmp"; return 1; }
+
     rm -rf "$tmp"
 }
 
@@ -253,8 +282,10 @@ run_test "template repairs empty and dangling resolv.conf" test_template_rootfs_
 run_test "template package transactions fail closed" assert_file_not_contains tools/pve-microvm-template '(apt-get|apk|dnf|microdnf|tdnf|yum).*install.*\|\| true'
 run_test "Enterprise Linux uses NetworkManager" assert_file_contains tools/pve-microvm-template 'systemctl enable NetworkManager\.service'
 run_test "Enterprise Linux installs full util-linux" assert_file_contains tools/pve-microvm-template 'NetworkManager systemd cloud-init util-linux'
-run_test "templates use packaged guest-agent service" bash -c "[ \"\$(grep -c 'systemctl unmask qemu-guest-agent.service' tools/pve-microvm-template)\" -eq 2 ]"
-run_test "templates do not create competing guest agent" assert_file_not_contains tools/pve-microvm-template 'ExecStart=.*qemu-ga.*vport1p1|systemctl mask qemu-guest-agent.service'
+run_test "templates configure one packaged guest-agent service" bash -c "[ \"\$(grep -c 'configure_systemd_guest_agent \"\$ROOTFS_DIR\"' tools/pve-microvm-template)\" -eq 2 ]"
+run_test "guest-agent replacement opens the direct microVM port" assert_file_contains tools/pve-microvm-template 'exec \$qemu_ga --method=virtio-serial --path=/dev/vport1p1'
+run_test "guest-agent replacement has no named-device dependency" assert_file_not_contains tools/pve-microvm-template '^BindsTo=.*org\.qemu\.guest_agent|^ConditionPathExists=.*/dev/virtio-ports'
+run_test "templates do not create competing guest agent" assert_file_not_contains tools/pve-microvm-template 'ExecStart=.*microvm-agent|systemctl mask qemu-guest-agent.service'
 run_test "special templates do not hardcode vmbr0" assert_file_not_contains tools/pve-microvm-template 'bridge=vmbr0'
 
 log "Kernel config contracts"
@@ -283,6 +314,8 @@ run_test "README install snippet is version-agnostic" assert_file_not_contains R
 run_test "installation docs are version-agnostic" assert_file_not_contains docs/installation.md 'pve-microvm_0\.[0-9]+\.[0-9]+-[0-9]+_all\.deb|releases/download/v0\.[0-9]+'
 run_test "docs keep scsi0 root at vda with cloud-init on vdb" bash -c "grep -q '\`scsi0\` is emitted first' docs/architecture.md && grep -q '\`/dev/vda\`; an optional cloud-init disk at \`scsi1\` appears as \`/dev/vdb\`' docs/architecture.md"
 run_test "troubleshooting avoids unreliable vmlinuz strings check" assert_file_not_contains docs/troubleshooting.md 'strings /usr/share/pve-microvm/vmlinuz'
+run_test "docs explain direct guest-agent port" assert_file_contains docs/known-issues.md '/dev/vport1p1'
+run_test "docs prohibit dual qemu-ga processes" assert_file_contains docs/troubleshooting.md 'exactly one `qemu-ga` process'
 run_test "README roadmap table rows have two columns" python3 - <<'PY'
 from pathlib import Path
 bad=[]
