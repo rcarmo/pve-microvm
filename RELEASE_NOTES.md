@@ -1,4 +1,14 @@
-# pve-microvm v0.3.23
+# pve-microvm v0.3.24
+
+## Reliable guest-agent startup
+
+- Keep exactly one service named `qemu-guest-agent.service`, avoiding the competing custom-agent loop fixed in v0.3.21.
+- Replace the vendor named-device activation path for generated systemd guests: wait for `/dev/vport1p1` and start the packaged `qemu-ga` directly.
+- Support Debian/Ubuntu's `/usr/sbin/qemu-ga` and Enterprise Linux's `/usr/bin/qemu-ga` paths.
+- Remove legacy `microvm-agent.service`, stale guest-agent drop-ins, and service masks during template construction.
+- Add synthetic Debian/RPM rootfs contracts and document existing-guest remediation.
+
+Live validation used fresh Debian 13 and AlmaLinux 10.2 templates and full clones. The Debian guest had no `/dev/virtio-ports/org.qemu.guest_agent.0` symlink but completed host guest-agent operations on initial boot and after `qm reboot`, with one `qemu-ga` process and zero restarts. The AlmaLinux guest also completed the host handshake through its `/usr/bin/qemu-ga` binary.
 
 ## Linked-clone disk format fix
 
@@ -55,7 +65,7 @@ Live validation used AlmaLinux 10.2 on PVE 9.2.6: a full clone booted with root 
 - The CI suite executes the embedded QemuServer patcher twice against a fixture
   and requires exactly one import and one delegation block.
 
-This release supersedes v0.3.17 through v0.3.22 for deployment.
+This release supersedes v0.3.17 through v0.3.23 for deployment.
 
 ## Guest lifecycle fixes
 

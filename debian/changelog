@@ -1,3 +1,15 @@
+pve-microvm (0.3.24-1) trixie; urgency=high
+
+  * Fix: start qemu-guest-agent directly on /dev/vport1p1
+  * Fix: avoid dependency on a missing named udev virtio-port symlink
+  * Safety: keep one packaged-agent service and remove legacy conflicts
+  * Templates: detect Debian/Ubuntu and Enterprise Linux qemu-ga paths
+  * Tests: add Debian/RPM rootfs contracts and live cold-boot validation
+  * Docs: explain kernel versus udev discovery and guest remediation
+  * Supersedes 0.3.17 through 0.3.23 for deployment
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Thu, 03 Sep 2026 16:45:00 +0000
+
 pve-microvm (0.3.23-1) trixie; urgency=high
 
   * Fix: detect managed disk formats with PVE::Storage::parse_volname
