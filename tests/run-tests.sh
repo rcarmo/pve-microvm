@@ -244,6 +244,8 @@ run_test "microVM command includes qmeventd socket" assert_file_contains tools/M
 run_test "microVM command includes qmp-event monitor" assert_file_contains tools/MicroVM.pm 'chardev=qmp-event,mode=control'
 run_test "qmeventd supports QEMU 9.2 reconnect-ms" assert_file_contains tools/MicroVM.pm 'reconnect-ms=5000'
 run_test "qmeventd keeps older QEMU reconnect fallback" assert_file_contains tools/MicroVM.pm 'reconnect=5'
+run_test "managed disk format comes from parse_volname" assert_file_contains tools/MicroVM.pm 'PVE::Storage::parse_volname\(\$storecfg, \$volid\)\)\[6\]'
+run_test "managed disk format avoids nonexistent volume_format API" assert_file_not_contains tools/MicroVM.pm 'PVE::Storage::volume_format'
 run_test "apt templates install dbus for guest shutdown" assert_file_contains tools/pve-microvm-template 'PKGS=.*dbus'
 run_test "template repairs empty and dangling resolv.conf" test_template_rootfs_helpers
 run_test "template package transactions fail closed" assert_file_not_contains tools/pve-microvm-template '(apt-get|apk|dnf|microdnf|tdnf|yum).*install.*\|\| true'

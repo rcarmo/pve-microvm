@@ -308,7 +308,7 @@ sub microvm_config_to_command {
             # Determine format: explicit > storage-detected > raw
             $format = $drive->{format};
             if (!$format) {
-                eval { $format = PVE::Storage::volume_format($storecfg, $volid); };
+                eval { $format = (PVE::Storage::parse_volname($storecfg, $volid))[6]; };
                 $format //= 'raw';
             }
             $format = 'rbd' if $is_rbd && !$drive->{format};
