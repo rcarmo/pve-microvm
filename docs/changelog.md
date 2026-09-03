@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Detect managed disk formats through `PVE::Storage::parse_volname()` so file-backed qcow2 linked clones boot with the correct QEMU block driver.
+- Fail command generation when PVE cannot identify a managed volume format instead of silently treating it as raw.
+- Document storage-specific formats and the fixed `scsi0` root / `scsi1` cloud-init device order.
 - Repair empty or dangling OCI `/etc/resolv.conf` files before chroot package installation.
 - Fail template builds when apt, apk, dnf, microdnf, tdnf, or yum package installation fails instead of publishing a bare rootfs.
 - Use NetworkManager with an autoconnect DHCP profile and full `util-linux` on Enterprise Linux 8/9/10; remove the unavailable `dhclient` fallback from that path.

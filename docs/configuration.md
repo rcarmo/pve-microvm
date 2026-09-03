@@ -68,6 +68,11 @@ tags: microvm
 vga: serial0
 ```
 
+`scsi0` is always emitted first and is `/dev/vda`, matching the kernel's
+`root=/dev/vda`. If present, the cloud-init disk at `scsi1` is `/dev/vdb` and
+does not change the root argument. File-backed linked clones retain their qcow2
+format through PVE storage metadata; block-backed LVM/ZFS volumes use raw.
+
 ## Automatic features
 
 When `machine: microvm` is detected, `MicroVM.pm` automatically:

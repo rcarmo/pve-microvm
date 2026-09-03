@@ -244,6 +244,10 @@ run_test "microVM command includes qmeventd socket" assert_file_contains tools/M
 run_test "microVM command includes qmp-event monitor" assert_file_contains tools/MicroVM.pm 'chardev=qmp-event,mode=control'
 run_test "qmeventd supports QEMU 9.2 reconnect-ms" assert_file_contains tools/MicroVM.pm 'reconnect-ms=5000'
 run_test "qmeventd keeps older QEMU reconnect fallback" assert_file_contains tools/MicroVM.pm 'reconnect=5'
+run_test "managed disk format executes raw/qcow2/RBD detection" perl tests/test-managed-volume-format.pl
+run_test "managed disk format uses parse_volname" assert_file_contains tools/MicroVM.pm 'PVE::Storage::parse_volname\(\$storecfg, \$volid\)'
+run_test "managed disk format avoids nonexistent volume_format API" assert_file_not_contains tools/MicroVM.pm 'PVE::Storage::volume_format'
+run_test "managed disk format never silently falls back to raw" assert_file_not_contains tools/MicroVM.pm "detected_format.*//.*'raw'|format.*//.*'raw'"
 run_test "apt templates install dbus for guest shutdown" assert_file_contains tools/pve-microvm-template 'PKGS=.*dbus'
 run_test "template repairs empty and dangling resolv.conf" test_template_rootfs_helpers
 run_test "template package transactions fail closed" assert_file_not_contains tools/pve-microvm-template '(apt-get|apk|dnf|microdnf|tdnf|yum).*install.*\|\| true'
@@ -277,6 +281,8 @@ run_test "early service runs before pvedaemon and pve-guests" bash -c "grep -q '
 log "Documentation contracts"
 run_test "README install snippet is version-agnostic" assert_file_not_contains README.md 'pve-microvm_0\.[0-9]+\.[0-9]+-[0-9]+_all\.deb'
 run_test "installation docs are version-agnostic" assert_file_not_contains docs/installation.md 'pve-microvm_0\.[0-9]+\.[0-9]+-[0-9]+_all\.deb|releases/download/v0\.[0-9]+'
+run_test "docs keep scsi0 root at vda with cloud-init on vdb" bash -c "grep -q '\`scsi0\` is emitted first' docs/architecture.md && grep -q '\`/dev/vda\`; an optional cloud-init disk at \`scsi1\` appears as \`/dev/vdb\`' docs/architecture.md"
+run_test "troubleshooting avoids unreliable vmlinuz strings check" assert_file_not_contains docs/troubleshooting.md 'strings /usr/share/pve-microvm/vmlinuz'
 run_test "README roadmap table rows have two columns" python3 - <<'PY'
 from pathlib import Path
 bad=[]
