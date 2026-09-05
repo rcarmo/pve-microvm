@@ -82,14 +82,6 @@ fi
 log "Cloning template $TEMPLATE_VMID → $VMID"
 qm clone "$TEMPLATE_VMID" "$VMID" --name "microvm-ephemeral-$$" --full >/dev/null 2>&1
 
-# Configure
-qm set "$VMID" --memory "$MEMORY" --cores "$CORES" --tags "microvm,ephemeral" >/dev/null 2>&1
-qm set "$VMID" --ciuser root --ipconfig0 ip=dhcp >/dev/null 2>&1
-
-if [ "$NET" -eq 0 ]; then
-    qm set "$VMID" --delete net0 >/dev/null 2>&1
-fi
-
 # Cleanup on exit
 cleanup() {
     log "Destroying ephemeral VM $VMID"
@@ -98,6 +90,14 @@ cleanup() {
     qm destroy "$VMID" --purge >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+# Configure
+qm set "$VMID" --memory "$MEMORY" --cores "$CORES" --tags "microvm,ephemeral" >/dev/null 2>&1
+qm set "$VMID" --ciuser root --ipconfig0 ip=dhcp >/dev/null 2>&1
+
+if [ "$NET" -eq 0 ]; then
+    qm set "$VMID" --delete net0 >/dev/null 2>&1
+fi
 
 # Start
 log "Starting VM $VMID ($MEMORY MB, $CORES cores)"
@@ -144,6 +144,7 @@ try:
     if out: sys.stdout.write(out)
     if err: sys.stderr.write(err)
     sys.exit(d.get('exitcode', 0))
-except:
-    sys.stdout.write(sys.stdin.read())
+except (ValueError, TypeError) as exc:
+    print(f'invalid guest-exec response: {exc}', file=sys.stderr)
+    sys.exit(1)
 "

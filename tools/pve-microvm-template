@@ -286,12 +286,15 @@ if qm config "$TEMPLATE_VMID" >/dev/null 2>&1; then
         log "Template VM $TEMPLATE_VMID already exists. Use --refresh to recreate."
         exit 0
     fi
-    log "Removing existing template $TEMPLATE_VMID"
-    qm destroy "$TEMPLATE_VMID" --purge 2>/dev/null || true
+    # Never interpret an arbitrary VMID as a disposable template.
+    qm config "$TEMPLATE_VMID" | grep -q '^template: 1$' \
+        || die "refusing to refresh non-template VM $TEMPLATE_VMID"
+    [ "$(qm status "$TEMPLATE_VMID")" = "status: stopped" ] \
+        || die "refusing to refresh running template $TEMPLATE_VMID"
 fi
 
 # Validate tools
-for tool in skopeo umoci qemu-img mkfs.ext4; do
+for tool in skopeo umoci qemu-img mkfs.ext4 findmnt awk; do
     command -v "$tool" >/dev/null 2>&1 || die "required tool not found: $tool"
 done
 
@@ -301,6 +304,11 @@ if [ ! -f "$KERNEL" ]; then
     INITRD="/boot/initrd.img-$(uname -r)"
     [ -f "$KERNEL" ] || die "no kernel found (neither shipped nor host)"
     log "Using host kernel: $KERNEL"
+fi
+
+if [ "$REFRESH" -eq 1 ] && qm config "$TEMPLATE_VMID" >/dev/null 2>&1; then
+    log "Removing existing template $TEMPLATE_VMID"
+    qm destroy "$TEMPLATE_VMID" --purge || die "cannot remove template $TEMPLATE_VMID"
 fi
 
 log "Creating microvm template from $IMAGE"
@@ -320,6 +328,19 @@ cleanup_build() {
         umount "$ROOTFS_DIR/sys" 2>/dev/null || true
         umount "$ROOTFS_DIR/proc" 2>/dev/null || true
     fi
+    # Never recurse into a failed bind unmount (which could delete host files).
+    local mount_targets
+    if ! mount_targets=$(findmnt -rn -o TARGET); then
+        log "WARNING: cannot inspect mounts; preserving $WORKDIR"
+        return
+    fi
+    if printf '%s\n' "$mount_targets" | awk -v root="$WORKDIR" '
+        $0 == root || index($0, root "/") == 1 { found=1 }
+        END { exit !found }
+    '; then
+        log "WARNING: mounts remain below $WORKDIR; preserving build directory"
+        return
+    fi
     rm -rf "$WORKDIR"
 }
 trap cleanup_build EXIT
@@ -332,6 +353,7 @@ if echo "$IMAGE" | grep -qi '^9front'; then
     NFRONT_QCOW2="$WORKDIR/9front.qcow2"
 
     log "Downloading from $NFRONT_URL (239 MB compressed)..."
+    curl -fL --retry 3 "$NFRONT_URL" -o "$NFRONT_GZ"
 
     log "Decompressing..."
     gunzip "$NFRONT_GZ"

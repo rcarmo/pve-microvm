@@ -156,6 +156,8 @@ EOF
     return "$rc"
 }
 
+run_test "audit safety and guest exit regressions" python3 tests/test-audit-regressions.py
+
 log "Shell syntax"
 for script in \
     tools/pve-microvm-template \

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Refuse template refresh for ordinary or running VMs; check prerequisites before deleting a template and abort on failed deletion.
+- Preserve build directories whenever bind mounts remain or mount inventory fails, avoiding recursive deletion through host mounts.
+- Download the 9Front image before decompressing it.
+- Preserve non-zero guest exit codes in the ephemeral runner and clean up clones after configuration failures.
+
 - Start the single packaged QEMU guest-agent service against `/dev/vport1p1` so minimal systemd guests do not depend on a missing named udev symlink.
 - Remove legacy custom-agent units, stale drop-ins and service masks during template construction to prevent competing `qemu-ga` processes.
 - Detect the packaged agent binary under `/usr/sbin` or `/usr/bin`, covering Debian/Ubuntu and Enterprise Linux templates.
