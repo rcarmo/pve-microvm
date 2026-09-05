@@ -1,3 +1,10 @@
+pve-microvm (0.3.25-1) trixie; urgency=high
+
+  * Audit fixes: guarded cleanup and refresh, verified rollback, strict failure
+    handling, and read-only drive protection.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sun, 06 Sep 2026 00:47:49 +0100
+
 pve-microvm (0.3.24-1) trixie; urgency=high
 
   * Fix: start qemu-guest-agent directly on /dev/vport1p1
