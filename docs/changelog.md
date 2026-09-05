@@ -92,3 +92,15 @@
 - `drive_is_cdrom($drive, 1)` excluded cloud-init from detection
 - dpkg trigger loop (interest-noawait)
 - postinst refreshes deployed files idempotently on upgrade without restoring stale backups
+
+### Audit safety follow-up (unreleased)
+
+- Refuse rollback when backup provenance is unknown or patched PVE files have since changed. This intentionally blocks unsafe removal on legacy installs until an operator reconciles backups with the installed qemu-server version.
+- Refuse unsupported QemuServer patch layouts rather than writing a false success marker.
+- Recheck Machine.pm on the stamped apply fast path.
+- Fail release kernel builds when required Kconfig options are missing.
+- Preserve OCI import diagnostics and fail on disk attachment errors.
+- Validate both upstream Perl layouts before applying either transform; verify backup contents as well as live files before rollback.
+- Remove only the injected UI script during rollback, retaining unrelated upstream template changes.
+- Reject missing, non-integer, or out-of-range guest-exec exit codes.
+- Honor read-only drive configuration and CD-ROM write protection in QEMU arguments.

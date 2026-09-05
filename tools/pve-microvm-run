@@ -139,11 +139,13 @@ qm guest exec "$VMID" -- "${CMD_ARGS[@]}" 2>&1 | python3 -c "
 import json, sys
 try:
     d = json.load(sys.stdin)
+    if not isinstance(d, dict) or type(d.get('exitcode')) is not int or not 0 <= d['exitcode'] <= 255:
+        raise ValueError('missing or invalid exitcode')
     out = d.get('out-data', '')
     err = d.get('err-data', '')
     if out: sys.stdout.write(out)
     if err: sys.stderr.write(err)
-    sys.exit(d.get('exitcode', 0))
+    sys.exit(d['exitcode'])
 except (ValueError, TypeError) as exc:
     print(f'invalid guest-exec response: {exc}', file=sys.stderr)
     sys.exit(1)

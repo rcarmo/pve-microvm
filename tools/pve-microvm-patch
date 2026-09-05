@@ -22,37 +22,8 @@ STAMP="/usr/share/pve-microvm/.applied"
 log() { echo "pve-microvm: $*"; }
 die() { echo "pve-microvm: ERROR: $*" >&2; exit 1; }
 
-cmd_apply() {
-    local use_count check_count
-    use_count=$(grep -c '^use PVE::QemuServer::MicroVM;$' "$QEMU_SERVER_PM" 2>/dev/null || true)
-    check_count=$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$QEMU_SERVER_PM" 2>/dev/null || true)
-    if [ -f "$STAMP" ] && [ "$use_count" -eq 1 ] && [ "$check_count" -eq 1 ]; then
-        # Package upgrades replace the source module/UI under
-        # /usr/share/pve-microvm but qemu-server is already patched. Refresh
-        # deployed files without inserting a second Perl block.
-        log "patches already applied; refreshing module and UI"
-        install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
-        install_ui
-        return 0
-    fi
-
-    [ -f "$MACHINE_PM" ]     || die "Machine.pm not found at $MACHINE_PM"
-    [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
-
-    mkdir -p "$BACKUP_DIR"
-
-    if [ "$use_count" -eq 0 ] && [ "$check_count" -eq 0 ]; then
-        log "backing up originals to $BACKUP_DIR"
-        cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
-        cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
-    else
-        log "existing patch markers found (use=$use_count, delegate=$check_count); preserving backups and normalising"
-    fi
-
-    # ── Patch Machine.pm ─────────────────────────────────────────
-    log "patching Machine.pm"
-
-    python3 << 'PATCHMACHINE'
+patch_machine() {
+    python3 - "$@" << 'PATCHMACHINE'
 import sys
 
 path = "/usr/share/perl5/PVE/QemuServer/Machine.pm"
@@ -106,21 +77,21 @@ if marker_pve0 in text and "microvm" not in text.split(marker_pve0)[0].split("su
 else:
     changes.append("get_vm_machine already patched or marker not found")
 
-with open(path, "w") as f:
-    f.write(text)
+required = (new_re, "return 'microvm' if $machine_type =~ m/^microvm/;",
+            "microvm => {}", "return $machine if $machine =~ m/^microvm/;")
+if not all(marker in text for marker in required):
+    raise SystemExit("Machine.pm layout unsupported: required hook missing")
+if "--check" not in sys.argv:
+    with open(path, "w") as f:
+        f.write(text)
 
 for c in changes:
     print(f"  {c}")
 PATCHMACHINE
+}
 
-    # ── Install MicroVM.pm ───────────────────────────────────────
-    log "installing MicroVM.pm module"
-    install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
-
-    # ── Patch QemuServer.pm ──────────────────────────────────────
-    log "patching QemuServer.pm"
-
-    python3 << 'PATCHQS'
+patch_qemu_server() {
+    python3 - "$@" << 'PATCHQS'
 path = "/usr/share/perl5/PVE/QemuServer.pm"
 with open(path) as f:
     lines = f.readlines()
@@ -166,13 +137,83 @@ for line in clean:
 
     out.append(line)
 
-with open(path, "w") as f:
-    f.writelines(out)
+if not added_use or not added_check:
+    raise SystemExit("QemuServer.pm layout unsupported: missing insertion anchor")
+if sum(line == "use PVE::QemuServer::MicroVM;\n" for line in out) != 1:
+    raise SystemExit("QemuServer.pm import normalization failed")
+if sum("PVE::QemuServer::MicroVM::is_microvm" in line for line in out) != 1:
+    raise SystemExit("QemuServer.pm delegation normalization failed")
+import sys
+if "--check" not in sys.argv:
+    with open(path, "w") as f:
+        f.writelines(out)
 print(f"  QemuServer.pm patched (use: {added_use}, delegate: {added_check})")
 PATCHQS
+}
+
+cmd_apply() {
+    local use_count check_count
+    use_count=$(grep -c '^use PVE::QemuServer::MicroVM;$' "$QEMU_SERVER_PM" 2>/dev/null || true)
+    check_count=$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$QEMU_SERVER_PM" 2>/dev/null || true)
+    if [ -f "$STAMP" ] && [ "$use_count" -eq 1 ] && [ "$check_count" -eq 1 ] \
+        && grep -q "pve-microvm: microvm doesn't use +pveN versioning" "$MACHINE_PM"; then
+        patch_machine --check
+        patch_qemu_server --check
+        mkdir -p "$BACKUP_DIR"
+        # Package upgrades replace the source module/UI under
+        # /usr/share/pve-microvm but qemu-server is already patched. Refresh
+        # deployed files without inserting a second Perl block.
+        log "patches already applied; refreshing module and UI"
+        install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
+        install_ui
+        return 0
+    fi
+
+    [ -f "$MACHINE_PM" ]     || die "Machine.pm not found at $MACHINE_PM"
+    [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
+
+    # Validate both transforms before either upstream file is modified.
+    patch_machine --check
+    patch_qemu_server --check
+    mkdir -p "$BACKUP_DIR"
+
+    local fresh_originals=0
+    if [ "$use_count" -eq 0 ] && [ "$check_count" -eq 0 ] \
+        && ! grep -q 'pve-microvm:' "$MACHINE_PM"; then
+        fresh_originals=1
+        log "backing up originals to $BACKUP_DIR"
+        cp -a "$MACHINE_PM" "$BACKUP_DIR/Machine.pm.orig"
+        cp -a "$QEMU_SERVER_PM" "$BACKUP_DIR/QemuServer.pm.orig"
+    else
+        log "existing patch markers found (use=$use_count, delegate=$check_count); preserving backups and normalising"
+    fi
+
+    # ── Patch Machine.pm ─────────────────────────────────────────
+    log "patching Machine.pm"
+
+    patch_machine
+
+    # ── Install MicroVM.pm ───────────────────────────────────────
+    log "installing MicroVM.pm module"
+    install -m 644 /usr/share/pve-microvm/MicroVM.pm "$MICROVM_MODULE"
+
+    # ── Patch QemuServer.pm ──────────────────────────────────────
+    log "patching QemuServer.pm"
+
+    patch_qemu_server
 
     # ── Install UI ───────────────────────────────────────────────
     install_ui
+
+    # Record the exact files paired with these backups. Uninstall must not
+    # overwrite later package/admin changes with historical originals.
+    if [ "$fresh_originals" -eq 1 ]; then
+        sha256sum "$MACHINE_PM" "$QEMU_SERVER_PM" \
+            "$BACKUP_DIR/Machine.pm.orig" "$BACKUP_DIR/QemuServer.pm.orig" > "$BACKUP_DIR/patched.sha256"
+    else
+        # Existing markers do not prove that historical backups are pristine.
+        rm -f "$BACKUP_DIR/patched.sha256"
+    fi
 
     # ── Stamp ────────────────────────────────────────────────────
     date -Iseconds > "$STAMP"
@@ -207,9 +248,17 @@ cmd_revert() {
 
     log "reverting patches"
 
+    [ -s "$BACKUP_DIR/patched.sha256" ] || die "rollback cannot verify legacy backups; refusing stale restore"
+    sha256sum -c "$BACKUP_DIR/patched.sha256" >/dev/null 2>&1 \
+        || die "PVE files changed since patching; refusing stale restore"
+    [ -f "$BACKUP_DIR/Machine.pm.orig" ] && [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] \
+        || die "rollback originals missing"
+
     [ -f "$BACKUP_DIR/Machine.pm.orig" ] && cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM" && log "restored Machine.pm"
     [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] && cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM" && log "restored QemuServer.pm"
-    [ -f "$BACKUP_DIR/index.html.tpl.orig" ] && cp -a "$BACKUP_DIR/index.html.tpl.orig" "$INDEX_TPL" && log "restored index.html.tpl"
+    if [ -f "$INDEX_TPL" ]; then
+        sed -i '\|^[[:space:]]*<script\( type="text/javascript"\)\? src="/pve2/js/pve-microvm.js"></script>[[:space:]]*$|d' "$INDEX_TPL"
+    fi && log "restored index.html.tpl"
 
     rm -f "$MICROVM_MODULE"
     rm -f "$PVE_CSS_DIR/pve-microvm.css" 2>/dev/null

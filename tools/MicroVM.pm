@@ -357,6 +357,8 @@ sub microvm_config_to_command {
             $drive_cmd .= ",aio=$aio";
         }
 
+        # Preserve the configured write protection and optical-media semantics.
+        $drive_cmd .= ",readonly=on" if $drive->{ro} || ($drive->{media} // '') eq 'cdrom';
         $drive_cmd .= ",detect-zeroes=on";
 
         # Throttling

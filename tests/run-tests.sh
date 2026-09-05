@@ -112,7 +112,7 @@ sub config_to_command {
     return [];
 }
 EOF
-    sed -n "/python3 << 'PATCHQS'/,/^PATCHQS$/p" tools/pve-microvm-patch \
+    sed -n "/<< 'PATCHQS'/,/^PATCHQS$/p" tools/pve-microvm-patch \
         | sed '1d;$d' \
         | sed "s|^path = .*|path = r\"$fixture\"|" > "$patch_py"
     python3 "$patch_py" >/dev/null

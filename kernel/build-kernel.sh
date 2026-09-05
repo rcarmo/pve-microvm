@@ -107,6 +107,10 @@ echo "Verifying critical configs..."
 for cfg in CONFIG_VIRTIO_NET CONFIG_VIRTIO_BALLOON CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_BLK CONFIG_VIRTIO_MMIO CONFIG_MODULES CONFIG_NET CONFIG_NETDEVICES CONFIG_NET_FAILOVER CONFIG_FAILOVER CONFIG_ETHERNET CONFIG_VIRTIO_PCI CONFIG_PCI CONFIG_NET_CORE CONFIG_DIMLIB CONFIG_TUN CONFIG_NF_TABLES CONFIG_NFT_NAT CONFIG_NFT_MASQ CONFIG_IP_NF_NAT CONFIG_IP6_NF_NAT; do
     val=$(grep "^${cfg}=" .config 2>/dev/null || echo "${cfg} NOT SET")
     echo "  $val"
+    case "$val" in
+        "$cfg=y"|"$cfg=m") ;;
+        *) echo "ERROR: required kernel option $cfg is missing" >&2; exit 1 ;;
+    esac
 done
 echo "All virtio configs:"
 grep '^CONFIG_VIRTIO' .config
