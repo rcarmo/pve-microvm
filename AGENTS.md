@@ -21,7 +21,7 @@ These notes capture the working process for developing, testing, and releasing `
 `pve-microvm` is a Debian package that adds QEMU `microvm` machine type support to Proxmox VE by:
 
 * Installing `PVE::QemuServer::MicroVM` as a delegated command builder.
-* Patching PVE's `Machine.pm` and `QemuServer.pm` so `machine: microvm` is accepted and dispatched to the microVM builder.
+* Patching PVE's `Machine.pm` and `QemuServer.pm` for microVM dispatch, plus `BlockJob.pm` so unversioned microVMs use drive-mirror for running full clones.
 * Shipping a minimal kernel/initrd pair for direct kernel boot.
 * Adding CLI helpers, template creation from OCI images, filesystem sharing, vsock support, and web UI integration.
 

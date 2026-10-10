@@ -88,9 +88,9 @@ revert = re.search(r'cmd_revert\(\) \{.*?\n\}', patcher, re.S).group()
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     (root/'backup').mkdir()
-    for name in ('stamp','Machine.pm','QemuServer.pm','module'):
+    for name in ('stamp','Machine.pm','QemuServer.pm','BlockJob.pm','module'):
         (root/name).write_text('current')
-    for name in ('Machine.pm.orig','QemuServer.pm.orig'):
+    for name in ('Machine.pm.orig','QemuServer.pm.orig','BlockJob.pm.orig'):
         (root/'backup'/name).write_text('old')
     prefix = f'''
 set -e
@@ -98,6 +98,7 @@ STAMP={root}/stamp
 BACKUP_DIR={root}/backup
 MACHINE_PM={root}/Machine.pm
 QEMU_SERVER_PM={root}/QemuServer.pm
+BLOCK_JOB_PM={root}/BlockJob.pm
 MICROVM_MODULE={root}/module
 INDEX_TPL={root}/index
 PVE_CSS_DIR={root}/css
@@ -114,7 +115,18 @@ die() {{ echo "$*" >&2; exit 1; }}
     import hashlib
     manifest=''.join(hashlib.sha256((root/n).read_bytes()).hexdigest()+'  '+str(root/n)+'\n' for n in ('Machine.pm','QemuServer.pm'))
     (root/'backup'/'patched.sha256').write_text(manifest)
+    # Valid legacy two-file manifest alone must not restore any files after
+    # the new BlockJob patch has been installed.
+    result = subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],capture_output=True)
+    assert result.returncode != 0 and (root/'Machine.pm').read_text() == 'current'
+    block_manifest=''.join(hashlib.sha256((root/n).read_bytes()).hexdigest()+'  '+str(root/n)+'\n' for n in ('BlockJob.pm','backup/BlockJob.pm.orig'))
+    (root/'backup'/'blockjob.sha256').write_text(block_manifest)
+    (root/'backup'/'BlockJob.pm.orig').write_text('changed')
+    result = subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],capture_output=True)
+    assert result.returncode != 0 and (root/'Machine.pm').read_text() == 'current'
+    (root/'backup'/'BlockJob.pm.orig').write_text('old')
     subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],check=True)
+    assert (root/'BlockJob.pm').read_text() == 'old'
     assert (root/'Machine.pm').read_text() == 'old'
     assert not (root/'module').exists()
 print('rollback: legacy refusal, changed-file refusal, verified restore passed')

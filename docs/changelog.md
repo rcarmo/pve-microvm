@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.29
+
+* Fix full clones from running microVMs: unversioned `microvm` bypasses the PVE
+  machine-version gate and uses the existing `qemu_drive_mirror` path. Other
+  machine types retain their original version check and mirror selection (#22).
+* Patch, preflight and trigger on `BlockJob.pm` alongside the existing PVE hooks.
+  Track its original/checksums independently, preserve verified prior provenance,
+  and refuse unsafe rollback when a live file or original has changed.
+* Exercise fresh/legacy upgrades, repeated applies, file replacement, rollback,
+  unsupported layouts and drive/blockdev dispatch in executable regressions.
+
 ## 0.3.28
 
 * Enable EROFS and built-in LZ4, DEFLATE and ZSTD decompression for container

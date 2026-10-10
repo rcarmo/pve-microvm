@@ -183,3 +183,17 @@ existing-guest replacement unit and EL binary-path note.
 The release workflow prints the final values of `CONFIG_VIRTIO_NET`,
 `CONFIG_VIRTIO_CONSOLE`, and `CONFIG_VIRTIO_BALLOON` after `olddefconfig`; all
 must be `=y`. The overlay is in `kernel/pve-microvm-overlay.config`.
+
+## Full clone from a running microVM fails in the version check
+
+Versions through 0.3.28 could pass the unversioned `microvm` machine string into
+PVE's block-job machine-version check before mirroring started. Depending on
+PVE version the task can report `unable to parse ... machine version` or
+`cannot check version of invalid string '10'`. The source guest can keep running
+while the failed clone is cleaned up.
+
+Upgrade to 0.3.29 or later. Its `BlockJob.pm` guard selects the existing drive
+mirror for exact `microvm`, matching the command builder's `-drive` devices.
+Versioned conventional machines retain their previous selection. Collect the
+clone task log and package versions if failure recurs; do not treat every disk
+copy error as this version-parser bug.

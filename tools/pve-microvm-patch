@@ -13,6 +13,7 @@ MICROVM_MODULE="/usr/share/perl5/PVE/QemuServer/MicroVM.pm"
 QEMU_SERVER_DIR="/usr/share/perl5/PVE/QemuServer"
 QEMU_SERVER_PM="/usr/share/perl5/PVE/QemuServer.pm"
 MACHINE_PM="${QEMU_SERVER_DIR}/Machine.pm"
+BLOCK_JOB_PM="${QEMU_SERVER_DIR}/BlockJob.pm"
 PVE_CSS_DIR="/usr/share/pve-manager/css"
 PVE_JS_DIR="/usr/share/pve-manager/js"
 INDEX_TPL="/usr/share/pve-manager/index.html.tpl"
@@ -151,14 +152,53 @@ print(f"  QemuServer.pm patched (use: {added_use}, delegate: {added_check})")
 PATCHQS
 }
 
+patch_block_job() {
+    python3 - "$@" << 'PATCHBLOCKJOB'
+import sys
+
+path = "/usr/share/perl5/PVE/QemuServer/BlockJob.pm"
+with open(path) as f:
+    text = f.read()
+start = text.find("sub mirror {\n")
+if start < 0:
+    raise SystemExit("BlockJob.pm layout unsupported: mirror missing")
+head, body = text[:start], text[start:]
+old = "    if (PVE::QemuServer::Machine::is_machine_version_at_least($machine_type, 10, 0)) {"
+new = ("    # pve-microvm: unversioned microvm uses -drive, not -blockdev\n"
+       "    if (\n"
+       "        $machine_type ne 'microvm'\n"
+       "        && PVE::QemuServer::Machine::is_machine_version_at_least($machine_type, 10, 0)\n"
+       "    ) {")
+# Accept the exact one-line guard suggested in #22, without blessing an
+# arbitrary modified mirror implementation or a partial/conflicting marker.
+manual = "    if ($machine_type ne 'microvm' && PVE::QemuServer::Machine::is_machine_version_at_least($machine_type, 10, 0)) {"
+if body.count(new) == 1 and old not in body and manual not in body:
+    pass
+elif body.count(old) == 1 and new not in body and manual not in body:
+    body = body.replace(old, new, 1)
+elif body.count(manual) == 1 and new not in body and old not in body:
+    body = body.replace(manual, new, 1)
+else:
+    raise SystemExit("BlockJob.pm layout unsupported: version gate missing or ambiguous")
+if "        blockdev_mirror($source, $dest, $jobs, $completion, $options);" not in body or "        qemu_drive_mirror(" not in body:
+    raise SystemExit("BlockJob.pm layout unsupported: mirror branches missing")
+if "--check" not in sys.argv:
+    with open(path, "w") as f:
+        f.write(head + body)
+print("  BlockJob.pm microvm drive-mirror guard verified")
+PATCHBLOCKJOB
+}
+
 cmd_apply() {
     local use_count check_count
     use_count=$(grep -c '^use PVE::QemuServer::MicroVM;$' "$QEMU_SERVER_PM" 2>/dev/null || true)
     check_count=$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$QEMU_SERVER_PM" 2>/dev/null || true)
     if [ -f "$STAMP" ] && [ "$use_count" -eq 1 ] && [ "$check_count" -eq 1 ] \
-        && grep -q "pve-microvm: microvm doesn't use +pveN versioning" "$MACHINE_PM"; then
+        && grep -q "pve-microvm: microvm doesn't use +pveN versioning" "$MACHINE_PM" \
+        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM"; then
         patch_machine --check
         patch_qemu_server --check
+        patch_block_job --check
         mkdir -p "$BACKUP_DIR"
         # Package upgrades replace the source module/UI under
         # /usr/share/pve-microvm but qemu-server is already patched. Refresh
@@ -171,12 +211,30 @@ cmd_apply() {
 
     [ -f "$MACHINE_PM" ]     || die "Machine.pm not found at $MACHINE_PM"
     [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
+    [ -f "$BLOCK_JOB_PM" ] || die "BlockJob.pm not found at $BLOCK_JOB_PM"
 
-    # Validate both transforms before either upstream file is modified.
+    # Validate every transform before either upstream file is modified.
     patch_machine --check
     patch_qemu_server --check
+    patch_block_job --check
     mkdir -p "$BACKUP_DIR"
 
+    # BlockJob was added after many installations already had Machine/QS
+    # patches. Track its provenance independently; never bless legacy originals.
+    local fresh_block_job=0
+    if ! grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM"; then
+        if ! grep -qF "\$machine_type ne 'microvm'" "$BLOCK_JOB_PM"; then
+            cp -a "$BLOCK_JOB_PM" "$BACKUP_DIR/BlockJob.pm.orig"
+            fresh_block_job=1
+        else
+            rm -f "$BACKUP_DIR/blockjob.sha256"
+        fi
+    fi
+
+    local verified_originals=0
+    if [ -s "$BACKUP_DIR/patched.sha256" ] && sha256sum -c "$BACKUP_DIR/patched.sha256" >/dev/null 2>&1; then
+        verified_originals=1
+    fi
     local fresh_originals=0
     if [ "$use_count" -eq 0 ] && [ "$check_count" -eq 0 ] \
         && ! grep -q 'pve-microvm:' "$MACHINE_PM"; then
@@ -202,12 +260,17 @@ cmd_apply() {
 
     patch_qemu_server
 
+    patch_block_job
+    if [ "$fresh_block_job" -eq 1 ]; then
+        sha256sum "$BLOCK_JOB_PM" "$BACKUP_DIR/BlockJob.pm.orig" > "$BACKUP_DIR/blockjob.sha256"
+    fi
+
     # ── Install UI ───────────────────────────────────────────────
     install_ui
 
     # Record the exact files paired with these backups. Uninstall must not
     # overwrite later package/admin changes with historical originals.
-    if [ "$fresh_originals" -eq 1 ]; then
+    if [ "$fresh_originals" -eq 1 ] || [ "$verified_originals" -eq 1 ]; then
         sha256sum "$MACHINE_PM" "$QEMU_SERVER_PM" \
             "$BACKUP_DIR/Machine.pm.orig" "$BACKUP_DIR/QemuServer.pm.orig" > "$BACKUP_DIR/patched.sha256"
     else
@@ -253,9 +316,14 @@ cmd_revert() {
         || die "PVE files changed since patching; refusing stale restore"
     [ -f "$BACKUP_DIR/Machine.pm.orig" ] && [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] \
         || die "rollback originals missing"
+    [ -s "$BACKUP_DIR/blockjob.sha256" ] && [ -f "$BACKUP_DIR/BlockJob.pm.orig" ] \
+        || die "rollback cannot verify BlockJob.pm original"
+    sha256sum -c "$BACKUP_DIR/blockjob.sha256" >/dev/null 2>&1 \
+        || die "BlockJob.pm or its original changed; refusing stale restore"
 
     [ -f "$BACKUP_DIR/Machine.pm.orig" ] && cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM" && log "restored Machine.pm"
     [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] && cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM" && log "restored QemuServer.pm"
+    cp -a "$BACKUP_DIR/BlockJob.pm.orig" "$BLOCK_JOB_PM"
     if [ -f "$INDEX_TPL" ]; then
         sed -i '\|^[[:space:]]*<script\( type="text/javascript"\)\? src="/pve2/js/pve-microvm.js"></script>[[:space:]]*$|d' "$INDEX_TPL"
     fi && log "restored index.html.tpl"
@@ -270,7 +338,8 @@ cmd_revert() {
 }
 
 cmd_status() {
-    if [ -f "$STAMP" ] && grep -q "PVE::QemuServer::MicroVM" "$QEMU_SERVER_PM" 2>/dev/null; then
+    if [ -f "$STAMP" ] && grep -q "PVE::QemuServer::MicroVM" "$QEMU_SERVER_PM" 2>/dev/null \
+        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM" 2>/dev/null; then
         echo "applied ($(cat "$STAMP"))"
     else
         echo "not applied"

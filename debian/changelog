@@ -1,3 +1,13 @@
+pve-microvm (0.3.29-1) trixie; urgency=high
+
+  * Fix live full cloning of microVMs (#22): keep unversioned microvm on the
+    existing QEMU drive-mirror path instead of parsing a machine version.
+  * Include BlockJob.pm in patch preflight, idempotency, backup/rollback
+    verification and qemu-server replacement triggers.
+  * Exercise branch dispatch, unsupported layouts and rollback guards.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Sat, 10 Oct 2026 07:00:00 +0000
+
 pve-microvm (0.3.28-1) trixie; urgency=medium
 
   * Enable built-in EROFS with LZ4, DEFLATE and ZSTD decompression for

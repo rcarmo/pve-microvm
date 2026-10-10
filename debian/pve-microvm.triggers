@@ -3,3 +3,4 @@
 # Use interest-noawait to avoid trigger loops (we modify the same files)
 interest-noawait /usr/share/perl5/PVE/QemuServer.pm
 interest-noawait /usr/share/perl5/PVE/QemuServer/Machine.pm
+interest-noawait /usr/share/perl5/PVE/QemuServer/BlockJob.pm
