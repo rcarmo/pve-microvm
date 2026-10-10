@@ -16,6 +16,31 @@ Rui's explicit rule: **profile and tune during pre-release tests; remove profili
 
 These notes capture the working process for developing, testing, and releasing `pve-microvm`. They are intentionally generic: replace hostnames, node IPs, storage names, VMIDs, and template IDs with values from your own Proxmox VE cluster.
 
+## Public communication and managed-infrastructure privacy
+
+Treat managed test infrastructure as potentially containing customer information.
+Do not publish internal hostnames, node/guest names or IDs, addresses, domains,
+topology, capacity/utilisation, workload identities, storage/backup locations,
+recovery paths, operational incidents, credentials or other internal details
+("inside baseball") in issues, comments, PRs, commits, release notes, repository
+docs, screenshots, attachments or CI artifacts. Testing permission is not
+publication permission; previous public disclosures do not grant permission to
+repeat them.
+
+Public reports should contain only the product defect, relevant public software
+versions, minimal sanitised reproduction, fix, scoped test outcomes and user
+recovery guidance. Say "an isolated test guest" or "a test host" instead of naming
+managed systems. Keep migration/deployment logistics and unrelated applications
+in private operational records, not public product reports. Explicit user
+approval is required before disclosing any infrastructure-specific detail.
+
+Before publishing, review both the payload and linked documents/artifacts for
+these details; sanitise logs, paths and identifiers without changing technical
+facts. Prefer synthetic fixtures. Never paste raw managed-host logs or configs.
+If details were published, remove them from current content and report the
+remaining exposure privately; do not rewrite Git history or delete other
+people's comments without explicit authorisation.
+
 ## Project shape
 
 `pve-microvm` is a Debian package that adds QEMU `microvm` machine type support to Proxmox VE by:

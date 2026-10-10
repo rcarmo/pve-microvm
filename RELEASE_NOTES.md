@@ -17,7 +17,7 @@ historical Machine/QemuServer backups lack verified provenance.
 
 Validation: **91 tests pass**, including mirror dispatch, layout rejection,
 fresh/legacy upgrades, repeated apply, upstream file replacement and rollback.
-A disposable running microVM on z83ii reproduced the old version-check failure.
+An isolated running microVM reproduced the version-check failure.
 After candidate installation its full clone completed, the source stayed running
 and responsive, and the destination booted with the expected on-disk marker.
 Both disposable VMs were removed; existing workloads were not rebooted.

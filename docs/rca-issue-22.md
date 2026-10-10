@@ -37,13 +37,12 @@ short-circuiting, conventional drive/blockdev selection and mirror arguments.
 Isolated filesystem tests exercise pristine installs, stamped legacy upgrades,
 BlockJob replacement and refusal of changed files/backups before rollback.
 
-The development suite passes **91/91**. On z83ii, a disposable 256 MiB running
+The development suite passes **91/91**. An isolated running
 Debian microVM reproduced the version-check failure before mirror start. After
 installing the candidate package, its full clone completed on LVM-thin using
 drive-mirror. The source stayed running and guest-agent responsive; the
 new destination booted and read the expected flushed on-disk marker. Both
-disposable VMs were purged. Existing guest PIDs and the daemon PID were unchanged
-through package configuration. PVE used its graceful daemon reload to refresh
+disposable VMs were purged. PVE used its graceful daemon reload to refresh
 cached Perl modules.
 
 A running full clone is a point-in-time operation with PVE's existing consistency
