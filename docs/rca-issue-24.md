@@ -60,10 +60,11 @@ The local regression suite passes **96/96**. Tests cover:
   and backing file remain at 1,048,576 bytes.
 
 The full upstream `Blockdev.pm` also passes transform preflight. The isolated
-QEMU test has no guest OS or network. A live Proxmox task, guest filesystem grow
-and published-package installation still need validation; SSH access to the
-managed host was unavailable during this fix. The issue's installed package
-revision is unknown.
+QEMU test has no guest OS or network. The published 0.4.2-1 package subsequently
+passed a live Proxmox resize from 2 to 3 GiB, online guest filesystem growth and
+sequential installation on five hosts without guest restarts. See the
+[published-package validation](release-0.4.2-validation.md) for measurements and
+limits. The original issue's installed package revision is unknown.
 
 ## Existing partial resizes
 

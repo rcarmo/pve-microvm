@@ -21,8 +21,10 @@ independently verified backups for rollback.
 The regression suite passes **96/96**. An isolated QEMU microVM test uses the
 patched Proxmox resize routine to grow the root disk. The separate read-only
 cloud-init disk stays unchanged. Tests also cover stopped-VM behaviour, size
-rounding, repeat installation, upgrades and rollback refusal. Live Proxmox task
-execution and guest filesystem growth need separate validation.
+rounding, repeat installation, upgrades and rollback refusal. The published
+package also passed a live Proxmox resize from 2 to 3 GiB, online filesystem
+growth and sequential installation on five hosts without guest restarts. See
+[published-package validation](docs/release-0.4.2-validation.md).
 
 See [issue #24](https://github.com/rcarmo/pve-microvm/issues/24) and the
 [cause and validation notes](docs/rca-issue-24.md).
