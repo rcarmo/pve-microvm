@@ -306,6 +306,7 @@ run_test "project-owned scratch and external mapping" bash tests/test-project-pa
 run_test "Landlock effective config and guest test compile" bash tests/test-landlock-build.sh
 
 run_test "BlockJob microvm mirror patch and dispatch" python3 tests/test-blockjob-patch.py
+run_test "Blockdev microvm mapping and live resize" python3 tests/test-blockdev-patch.py
 
 run_test "Dual-stack policy routing and marks build contract" bash tests/test-network-build.sh
 

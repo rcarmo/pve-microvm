@@ -17,7 +17,7 @@ jobs:
           echo "PROJECT_TMP_ROOT=$RUNNER_TEMP/pve-microvm" >> "$GITHUB_ENV"
 
       - name: Install profiling tools
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq valgrind qemu-system-x86
 
       - name: Run tests
         run: make test-profile

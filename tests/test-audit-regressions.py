@@ -88,9 +88,9 @@ revert = re.search(r'cmd_revert\(\) \{.*?\n\}', patcher, re.S).group()
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     (root/'backup').mkdir()
-    for name in ('stamp','Machine.pm','QemuServer.pm','BlockJob.pm','module'):
+    for name in ('stamp','Machine.pm','QemuServer.pm','BlockJob.pm','Blockdev.pm','module'):
         (root/name).write_text('current')
-    for name in ('Machine.pm.orig','QemuServer.pm.orig','BlockJob.pm.orig'):
+    for name in ('Machine.pm.orig','QemuServer.pm.orig','BlockJob.pm.orig','Blockdev.pm.orig'):
         (root/'backup'/name).write_text('old')
     prefix = f'''
 set -e
@@ -99,6 +99,7 @@ BACKUP_DIR={root}/backup
 MACHINE_PM={root}/Machine.pm
 QEMU_SERVER_PM={root}/QemuServer.pm
 BLOCK_JOB_PM={root}/BlockJob.pm
+BLOCKDEV_PM={root}/Blockdev.pm
 MICROVM_MODULE={root}/module
 INDEX_TPL={root}/index
 PVE_CSS_DIR={root}/css
@@ -125,7 +126,17 @@ die() {{ echo "$*" >&2; exit 1; }}
     result = subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],capture_output=True)
     assert result.returncode != 0 and (root/'Machine.pm').read_text() == 'current'
     (root/'backup'/'BlockJob.pm.orig').write_text('old')
+    # Blockdev provenance is independently required before restoring anything.
+    result = subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],capture_output=True)
+    assert result.returncode != 0 and (root/'Machine.pm').read_text() == 'current'
+    blockdev_manifest=''.join(hashlib.sha256((root/n).read_bytes()).hexdigest()+'  '+str(root/n)+'\n' for n in ('Blockdev.pm','backup/Blockdev.pm.orig'))
+    (root/'backup'/'blockdev.sha256').write_text(blockdev_manifest)
+    (root/'Blockdev.pm').write_text('admin change')
+    result = subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],capture_output=True)
+    assert result.returncode != 0 and (root/'Machine.pm').read_text() == 'current'
+    (root/'Blockdev.pm').write_text('current')
     subprocess.run(['bash','-c',prefix+revert+'\ncmd_revert'],check=True)
+    assert (root/'Blockdev.pm').read_text() == 'old'
     assert (root/'BlockJob.pm').read_text() == 'old'
     assert (root/'Machine.pm').read_text() == 'old'
     assert not (root/'module').exists()

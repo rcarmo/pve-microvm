@@ -14,6 +14,7 @@ QEMU_SERVER_DIR="/usr/share/perl5/PVE/QemuServer"
 QEMU_SERVER_PM="/usr/share/perl5/PVE/QemuServer.pm"
 MACHINE_PM="${QEMU_SERVER_DIR}/Machine.pm"
 BLOCK_JOB_PM="${QEMU_SERVER_DIR}/BlockJob.pm"
+BLOCKDEV_PM="${QEMU_SERVER_DIR}/Blockdev.pm"
 PVE_CSS_DIR="/usr/share/pve-manager/css"
 PVE_JS_DIR="/usr/share/pve-manager/js"
 INDEX_TPL="/usr/share/pve-manager/index.html.tpl"
@@ -189,16 +190,78 @@ print("  BlockJob.pm microvm drive-mirror guard verified")
 PATCHBLOCKJOB
 }
 
+patch_blockdev() {
+    python3 - "$@" << 'PATCHBLOCKDEV'
+import sys
+
+path = "/usr/share/perl5/PVE/QemuServer/Blockdev.pm"
+with open(path) as f:
+    text = f.read()
+old = r'''    my $block_info = {};
+
+    my $qmp_block_info = mon_cmd($vmid, "query-block");
+    for my $info ($qmp_block_info->@*) {
+        my $qdev_id = $info->{qdev} or next;
+        my $drive_id = qdev_id_to_drive_id($qdev_id);
+        $block_info->{$drive_id} = $info;
+    }
+
+    return $block_info;'''
+new = r'''    my $block_info = {};
+    my $microvm;
+
+    my $qmp_block_info = mon_cmd($vmid, "query-block");
+    for my $info ($qmp_block_info->@*) {
+        my $qdev_id = $info->{qdev};
+        # pve-microvm: resolve anonymous virtio disks by their legacy backend ID
+        if (!$qdev_id || $qdev_id =~ m{^/machine/peripheral-anon/device\[\d+\](?:/virtio-backend)?$}) {
+            my ($drive_id) = ($info->{device} // '') =~ m/^drive-((?:scsi|virtio|ide|sata)\d+)$/;
+            if (defined($drive_id)) {
+                $microvm //= PVE::QemuServer::Machine::get_current_qemu_machine($vmid) eq 'microvm';
+                if ($microvm) {
+                    die "duplicate microvm block backend '$drive_id'\n" if exists($block_info->{$drive_id});
+                    $block_info->{$drive_id} = $info;
+                    next;
+                }
+            }
+        }
+        $qdev_id or next;
+        my $drive_id = qdev_id_to_drive_id($qdev_id);
+        $block_info->{$drive_id} = $info;
+    }
+
+    return $block_info;'''
+# Limit the transform to this subroutine; reject partial/conflicting edits.
+start = text.find("sub get_block_info {\n")
+end = text.find("\n}\n", start)
+if start < 0 or end < 0 or text.count("sub get_block_info {\n") != 1:
+    raise SystemExit("Blockdev.pm layout unsupported: get_block_info missing or ambiguous")
+body = text[start:end]
+if body.count(new) == 1 and old not in body:
+    pass
+elif body.count(old) == 1 and "pve-microvm:" not in body:
+    text = text[:start] + body.replace(old, new, 1) + text[end:]
+else:
+    raise SystemExit("Blockdev.pm layout unsupported: block info mapping missing or conflicting")
+if "--check" not in sys.argv:
+    with open(path, "w") as f:
+        f.write(text)
+print("  Blockdev.pm microvm backend mapping verified")
+PATCHBLOCKDEV
+}
+
 cmd_apply() {
     local use_count check_count
     use_count=$(grep -c '^use PVE::QemuServer::MicroVM;$' "$QEMU_SERVER_PM" 2>/dev/null || true)
     check_count=$(grep -c 'PVE::QemuServer::MicroVM::is_microvm' "$QEMU_SERVER_PM" 2>/dev/null || true)
     if [ -f "$STAMP" ] && [ "$use_count" -eq 1 ] && [ "$check_count" -eq 1 ] \
         && grep -q "pve-microvm: microvm doesn't use +pveN versioning" "$MACHINE_PM" \
-        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM"; then
+        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM" \
+        && grep -q "pve-microvm: resolve anonymous virtio disks" "$BLOCKDEV_PM"; then
         patch_machine --check
         patch_qemu_server --check
         patch_block_job --check
+        patch_blockdev --check
         mkdir -p "$BACKUP_DIR"
         # Package upgrades replace the source module/UI under
         # /usr/share/pve-microvm but qemu-server is already patched. Refresh
@@ -212,11 +275,13 @@ cmd_apply() {
     [ -f "$MACHINE_PM" ]     || die "Machine.pm not found at $MACHINE_PM"
     [ -f "$QEMU_SERVER_PM" ] || die "QemuServer.pm not found at $QEMU_SERVER_PM"
     [ -f "$BLOCK_JOB_PM" ] || die "BlockJob.pm not found at $BLOCK_JOB_PM"
+    [ -f "$BLOCKDEV_PM" ] || die "Blockdev.pm not found at $BLOCKDEV_PM"
 
     # Validate every transform before either upstream file is modified.
     patch_machine --check
     patch_qemu_server --check
     patch_block_job --check
+    patch_blockdev --check
     mkdir -p "$BACKUP_DIR"
 
     # BlockJob was added after many installations already had Machine/QS
@@ -229,6 +294,12 @@ cmd_apply() {
         else
             rm -f "$BACKUP_DIR/blockjob.sha256"
         fi
+    fi
+
+    local fresh_blockdev=0
+    if ! grep -q 'pve-microvm:' "$BLOCKDEV_PM"; then
+        cp -a "$BLOCKDEV_PM" "$BACKUP_DIR/Blockdev.pm.orig"
+        fresh_blockdev=1
     fi
 
     local verified_originals=0
@@ -263,6 +334,11 @@ cmd_apply() {
     patch_block_job
     if [ "$fresh_block_job" -eq 1 ]; then
         sha256sum "$BLOCK_JOB_PM" "$BACKUP_DIR/BlockJob.pm.orig" > "$BACKUP_DIR/blockjob.sha256"
+    fi
+
+    patch_blockdev
+    if [ "$fresh_blockdev" -eq 1 ]; then
+        sha256sum "$BLOCKDEV_PM" "$BACKUP_DIR/Blockdev.pm.orig" > "$BACKUP_DIR/blockdev.sha256"
     fi
 
     # ── Install UI ───────────────────────────────────────────────
@@ -321,9 +397,15 @@ cmd_revert() {
     sha256sum -c "$BACKUP_DIR/blockjob.sha256" >/dev/null 2>&1 \
         || die "BlockJob.pm or its original changed; refusing stale restore"
 
+    [ -s "$BACKUP_DIR/blockdev.sha256" ] && [ -f "$BACKUP_DIR/Blockdev.pm.orig" ] \
+        || die "rollback cannot verify Blockdev.pm original"
+    sha256sum -c "$BACKUP_DIR/blockdev.sha256" >/dev/null 2>&1 \
+        || die "Blockdev.pm or its original changed; refusing stale restore"
+
     [ -f "$BACKUP_DIR/Machine.pm.orig" ] && cp -a "$BACKUP_DIR/Machine.pm.orig" "$MACHINE_PM" && log "restored Machine.pm"
     [ -f "$BACKUP_DIR/QemuServer.pm.orig" ] && cp -a "$BACKUP_DIR/QemuServer.pm.orig" "$QEMU_SERVER_PM" && log "restored QemuServer.pm"
     cp -a "$BACKUP_DIR/BlockJob.pm.orig" "$BLOCK_JOB_PM"
+    cp -a "$BACKUP_DIR/Blockdev.pm.orig" "$BLOCKDEV_PM"
     if [ -f "$INDEX_TPL" ]; then
         sed -i '\|^[[:space:]]*<script\( type="text/javascript"\)\? src="/pve2/js/pve-microvm.js"></script>[[:space:]]*$|d' "$INDEX_TPL"
     fi && log "restored index.html.tpl"
@@ -339,7 +421,8 @@ cmd_revert() {
 
 cmd_status() {
     if [ -f "$STAMP" ] && grep -q "PVE::QemuServer::MicroVM" "$QEMU_SERVER_PM" 2>/dev/null \
-        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM" 2>/dev/null; then
+        && grep -q "pve-microvm: unversioned microvm uses -drive" "$BLOCK_JOB_PM" 2>/dev/null \
+        && grep -q "pve-microvm: resolve anonymous virtio disks" "$BLOCKDEV_PM" 2>/dev/null; then
         echo "applied ($(cat "$STAMP"))"
     else
         echo "not applied"

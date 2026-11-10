@@ -131,17 +131,28 @@ with tempfile.TemporaryDirectory() as tmp:
     machine_path = upstream / 'Machine.pm'
     qs_path = upstream.parent / 'QemuServer.pm'
     block_path = upstream / 'BlockJob.pm'
+    blockdev_path = upstream / 'Blockdev.pm'
+    blockdev_original = (ROOT / 'tests/fixtures/Blockdev.pm').read_text()
     hook = root / 'patch'
     hook.write_text(patcher.replace('/usr/share/', str(root / 'usr/share') + '/'))
     for kind in ('fresh', 'legacy'):
         machine_path.write_text(machine)
         qs_path.write_text(qs)
         block_path.write_text(original)
+        blockdev_path.write_text(blockdev_original)
         (source / '.applied').unlink(missing_ok=True)
         backup = source / 'backup'
         if backup.exists():
             import shutil
             shutil.rmtree(backup)
+        if kind == 'fresh':
+            blockdev_path.write_text('unsupported upstream layout\n')
+            result = subprocess.run(['bash', str(hook), 'apply'], capture_output=True)
+            assert result.returncode != 0
+            assert machine_path.read_text() == machine and qs_path.read_text() == qs
+            assert block_path.read_text() == original
+            assert not backup.exists()
+            blockdev_path.write_text(blockdev_original)
         if kind == 'legacy':
             # Match a 0.3.28 stamped installation, without creating a modern
             # manifest that would bless its historical backups.
@@ -157,10 +168,10 @@ with tempfile.TemporaryDirectory() as tmp:
         assert (backup / 'BlockJob.pm.orig').read_text() == original
         subprocess.run(['sha256sum', '-c', str(backup / 'blockjob.sha256')], check=True,
                        capture_output=True)
-        once = [p.read_text() for p in (machine_path, qs_path, block_path)]
+        once = [p.read_text() for p in (machine_path, qs_path, block_path, blockdev_path)]
         manifest = (backup / 'blockjob.sha256').read_text()
         subprocess.run(['bash', str(hook), 'apply'], check=True, capture_output=True)
-        assert once == [p.read_text() for p in (machine_path, qs_path, block_path)]
+        assert once == [p.read_text() for p in (machine_path, qs_path, block_path, blockdev_path)]
         assert manifest == (backup / 'blockjob.sha256').read_text()
         # File-trigger replacement of just BlockJob must leave the stamped
         # fast path and reapply safely, pairing the new pristine original.
@@ -169,6 +180,20 @@ with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(['bash', str(hook), 'apply'], check=True, capture_output=True)
         assert (backup / 'BlockJob.pm.orig').read_text() == replacement
         assert 'upstream update' in block_path.read_text()
+        # Old stamped installs need the new mapping even when earlier hooks exist.
+        blockdev_path.write_text(blockdev_original)
+        (backup / 'Blockdev.pm.orig').unlink()
+        (backup / 'blockdev.sha256').unlink()
+        subprocess.run(['bash', str(hook), 'apply'], check=True, capture_output=True)
+        assert 'pve-microvm: resolve anonymous virtio disks' in blockdev_path.read_text()
+        assert (backup / 'Blockdev.pm.orig').read_text() == blockdev_original
+        # Trigger replacing Blockdev must capture the new pristine original.
+        blockdev_replacement = blockdev_original.replace('use warnings;', 'use warnings;\n# upstream update')
+        blockdev_path.write_text(blockdev_replacement)
+        subprocess.run(['bash', str(hook), 'apply'], check=True, capture_output=True)
+        assert (backup / 'Blockdev.pm.orig').read_text() == blockdev_replacement
+        subprocess.run(['sha256sum', '-c', str(backup / 'blockdev.sha256')], check=True,
+                       capture_output=True)
         if kind == 'legacy':
             assert not (backup / 'patched.sha256').exists()
             prior = machine_path.read_text()
@@ -184,5 +209,6 @@ with tempfile.TemporaryDirectory() as tmp:
             block_path.write_text(block_path.read_text().removesuffix('# admin change\n'))
             subprocess.run(['bash', str(hook), 'revert'], check=True, capture_output=True)
             assert block_path.read_text() == replacement
+            assert blockdev_path.read_text() == blockdev_replacement
             assert machine_path.read_text() == machine and qs_path.read_text() == qs
 print('BlockJob fresh/legacy upgrade, stamped apply, replacement and verified rollback passed')
