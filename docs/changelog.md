@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 (2026-11-10)
 
 - Fix live disk resize for microVMs with anonymous virtio devices. Resolve the
   disk through its legacy backend ID; preserve conventional VM node mapping.
   See [issue #24](https://github.com/rcarmo/pve-microvm/issues/24) and the
   [cause and validation](rca-issue-24.md).
+- Add file-trigger and verified rollback handling for `Blockdev.pm`.
+- Retain Linux 6.12.113 and the AppArmor-first LSM configuration.
 
 ## 0.4.1
 

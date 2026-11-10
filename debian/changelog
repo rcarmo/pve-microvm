@@ -1,3 +1,13 @@
+pve-microvm (0.4.2-1) trixie; urgency=high
+
+  * Fix live resize lookup for anonymous microVM virtio disks (closes: #24).
+  * Preserve conventional VM block-node mapping and resize behaviour.
+  * Add Blockdev file-trigger handling and independently verified rollback.
+  * Test live QMP resize without changing the read-only cloud-init disk.
+  * Retain Linux 6.12.113 and the existing AppArmor default.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Tue, 10 Nov 2026 14:00:00 +0000
+
 pve-microvm (0.4.1-1) trixie; urgency=high
 
   * Enable built-in AppArmor and select it as the default major LSM, with

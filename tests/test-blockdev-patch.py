@@ -16,6 +16,7 @@ if not os.environ.get('PVE_MICROVM_RUN_DIR'):
                                     '--exec', 'tests', sys.executable, *sys.argv]).returncode)
 os.chdir(ROOT)
 patcher = (ROOT / 'tools/pve-microvm-patch').read_text()
+assert 'python3 -S - "$@"' in patcher.split('patch_blockdev() {', 1)[1].split("<< 'PATCHBLOCKDEV'\n", 1)[0]
 code = patcher.split("<< 'PATCHBLOCKDEV'\n", 1)[1].split('\nPATCHBLOCKDEV', 1)[0]
 original = (ROOT / 'tests/fixtures/Blockdev.pm').read_text()
 

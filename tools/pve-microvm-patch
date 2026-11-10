@@ -25,7 +25,7 @@ log() { echo "pve-microvm: $*"; }
 die() { echo "pve-microvm: ERROR: $*" >&2; exit 1; }
 
 patch_machine() {
-    python3 - "$@" << 'PATCHMACHINE'
+    python3 -S - "$@" << 'PATCHMACHINE'
 import sys
 
 path = "/usr/share/perl5/PVE/QemuServer/Machine.pm"
@@ -93,7 +93,7 @@ PATCHMACHINE
 }
 
 patch_qemu_server() {
-    python3 - "$@" << 'PATCHQS'
+    python3 -S - "$@" << 'PATCHQS'
 path = "/usr/share/perl5/PVE/QemuServer.pm"
 with open(path) as f:
     lines = f.readlines()
@@ -154,7 +154,7 @@ PATCHQS
 }
 
 patch_block_job() {
-    python3 - "$@" << 'PATCHBLOCKJOB'
+    python3 -S - "$@" << 'PATCHBLOCKJOB'
 import sys
 
 path = "/usr/share/perl5/PVE/QemuServer/BlockJob.pm"
@@ -191,7 +191,7 @@ PATCHBLOCKJOB
 }
 
 patch_blockdev() {
-    python3 - "$@" << 'PATCHBLOCKDEV'
+    python3 -S - "$@" << 'PATCHBLOCKDEV'
 import sys
 
 path = "/usr/share/perl5/PVE/QemuServer/Blockdev.pm"
