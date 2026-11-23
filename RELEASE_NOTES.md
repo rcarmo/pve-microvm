@@ -20,7 +20,9 @@ reject disabled/non-image storage, preserve a template during a rejected refresh
 and verify import/attachment/template conversion in a disposable stopped VM.
 Separate CPU/allocation passes passed; no guest restart was needed. See
 [issue #25](https://github.com/rcarmo/pve-microvm/issues/25), the
-[cause and coverage](docs/rca-issue-25.md) and [storage selection](docs/usage.md#choose-storage).
+[cause and coverage](docs/rca-issue-25.md),
+[published-package validation](docs/release-0.4.3-validation.md) and
+[storage selection](docs/usage.md#choose-storage).
 
 GitHub bug-report forms now require Proxmox VE and pve-microvm versions,
 reproduction steps and error output. Storage reports request sanitised storage

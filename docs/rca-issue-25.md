@@ -40,6 +40,12 @@ pre-existing unused disks and failed attachment verification. It also checks
 that all disk-import paths use the shared helper and storage preflight precedes
 refresh deletion.
 
+The published 0.4.3-1 tool passed disabled-storage refresh preflight on a real
+Proxmox host without changing its existing template or running canary. The
+same source helpers verified a valid import, attachment and template conversion
+on LVM-thin. See [published-package validation](release-0.4.3-validation.md)
+for evidence and limits.
+
 GitHub bug reports now require Proxmox VE and pve-microvm versions, reproduction
 steps and error output. Storage failures request sanitised storage status and
 configuration. A separate feature-request form collects the use case and
