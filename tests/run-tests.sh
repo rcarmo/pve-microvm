@@ -157,6 +157,7 @@ EOF
 }
 
 run_test "audit safety and guest exit regressions" python3 tests/test-audit-regressions.py
+run_test "template storage and import validation" python3 tests/test-template-storage.py
 
 log "Shell syntax"
 for script in \

@@ -20,6 +20,24 @@ qm start 901
 qm terminal 901
 ```
 
+## Choose storage
+
+`local-lvm` is the default, not an automatic selection. The selected storage
+must be enabled on the current node, active and support VM disk images. If it
+is disabled or unavailable, select a suitable store explicitly:
+
+```bash
+pvesm status
+pve-microvm-template --image debian:trixie-slim --storage <image-storage>
+```
+
+The tool checks storage before downloading an image or removing a template with
+`--refresh`, and again before disk import. It verifies the imported backing
+volume and attached disk before converting the VM to a template. Import errors
+remain visible. After a failed import, inspect the VM's unused disks before
+retrying; the tool preserves that VM for diagnosis and does not guess a volume
+name or switch storage pools.
+
 ## Template options
 
 | Flag | Default | Purpose |

@@ -1,3 +1,13 @@
+pve-microvm (0.4.3-1) trixie; urgency=high
+
+  * Check template storage before image builds and refresh deletion (#25).
+  * Print failed disk imports; verify volume ownership, backing and attachment.
+  * Remove guessed import volume IDs from OCI and specialist image paths.
+  * Add bug-report forms requiring PVE and pve-microvm versions.
+  * Retain Linux 6.12.113 and the AppArmor default.
+
+ -- Rui Carmo <rui.carmo@gmail.com>  Mon, 23 Nov 2026 20:30:00 +0000
+
 pve-microvm (0.4.2-1) trixie; urgency=high
 
   * Fix live resize lookup for anonymous microVM virtio disks (closes: #24).

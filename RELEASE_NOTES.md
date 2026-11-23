@@ -1,44 +1,31 @@
-# v0.4.2 — live microVM disk resize
+# v0.4.3 — template storage validation
 
-This patch fixes live disk resize for microVMs whose virtio devices have
-anonymous QEMU device IDs. Linux stays at **6.12.113**, with AppArmor selected
-by default.
+Template creation now rejects disabled, unavailable or unsuitable storage before
+building an image or removing an existing template with `--refresh`.
 
-## Disk resize
+The selected storage must be enabled on the current node, active and support
+VM disk images. `local-lvm` remains the default. If it is disabled, select a
+suitable pool with `--storage`; the tool does not enable it or switch pools.
 
-Proxmox could grow the backing volume and then fail with:
+Disk-import errors are printed. Successful imports must register one new unused
+volume on the selected storage, owned by the template VM, with a non-empty
+backing volume. The tool verifies attachment before converting the VM to a
+template. OCI and specialist disk-image imports share these checks. Failed
+imports preserve the VM for inspection; existing partial creations are not
+repaired automatically.
 
-```text
-no block node inserted for drive 'scsi0'
-```
+The local suite passes **97/97**, including storage/import failure cases and
+existing patch, resize, security and isolation checks. Real Proxmox checks
+reject disabled/non-image storage, preserve a template during a rejected refresh,
+and verify import/attachment/template conversion in a disposable stopped VM.
+Separate CPU/allocation passes passed; no guest restart was needed. See
+[issue #25](https://github.com/rcarmo/pve-microvm/issues/25), the
+[cause and coverage](docs/rca-issue-25.md) and [storage selection](docs/usage.md#choose-storage).
 
-The block-info lookup now resolves missing or anonymous virtio device IDs
-through the stable legacy backend ID, such as `drive-scsi0`, for exact `microvm`
-guests. Conventional VMs keep the upstream mapping and top-throttle-node resize
-behaviour. The installer handles `Blockdev.pm` file replacement and requires
-independently verified backups for rollback.
+GitHub bug-report forms now require Proxmox VE and pve-microvm versions,
+reproduction steps and error output. Storage reports request sanitised storage
+status and configuration. A separate form collects feature requests.
 
-The regression suite passes **96/96**. An isolated QEMU microVM test uses the
-patched Proxmox resize routine to grow the root disk. The separate read-only
-cloud-init disk stays unchanged. Tests also cover stopped-VM behaviour, size
-rounding, repeat installation, upgrades and rollback refusal. The published
-package also passed a live Proxmox resize from 2 to 3 GiB, online filesystem
-growth and sequential installation on five hosts without guest restarts. See
-[published-package validation](docs/release-0.4.2-validation.md).
-
-See [issue #24](https://github.com/rcarmo/pve-microvm/issues/24) and the
-[cause and validation notes](docs/rca-issue-24.md).
-
-## Existing partial resizes
-
-The patch does not repair earlier partial resizes. Check the backing volume,
-QEMU node and stored configuration sizes before retrying. An additive retry
-can grow storage again; use a verified absolute target. Guest partition and
-filesystem growth remain separate steps.
-
-## Installation
-
-Install `pve-microvm_0.4.2-1_all.deb` on each Proxmox host. Installation reloads
-`pvedaemon` to refresh its Perl code. Guest restarts are not required for this
-host-side fix. Custom kernel paths and existing guest network files are
-preserved.
+Linux remains **6.12.113**, with AppArmor selected by default. Install
+`pve-microvm_0.4.3-1_all.deb` on the Proxmox host; guest restarts are not required
+for this template-tool fix.

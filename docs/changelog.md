@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 (2026-11-23)
+
+- Validate selected storage before template builds or refresh deletion.
+- Show disk-import failures and verify registered backing volumes and attachment;
+  remove guessed disk IDs. See [issue #25](https://github.com/rcarmo/pve-microvm/issues/25)
+  and [cause and regression coverage](rca-issue-25.md).
+- Add bug-report and feature-request forms. Bug reports require both versions.
+- Retain Linux 6.12.113 and AppArmor-first LSM selection.
+
 ## 0.4.2 (2026-11-10)
 
 - Fix live disk resize for microVMs with anonymous virtio devices. Resolve the

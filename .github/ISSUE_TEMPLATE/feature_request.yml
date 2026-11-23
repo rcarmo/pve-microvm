@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a bounded change to pve-microvm.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Explain the task you cannot complete with the current version.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-change
+    attributes:
+      label: Proposed change
+      description: Describe the expected behaviour and any compatibility requirements.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and current workaround
+  - type: input
+    id: versions
+    attributes:
+      label: Proxmox VE and pve-microvm versions
+      description: Include versions if the request depends on a particular host configuration.

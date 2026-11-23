@@ -135,6 +135,75 @@ WantedBy=multi-user.target
 EOF
 }
 
+validate_template_storage() {
+    perl - "$STORAGE" <<'STORAGECHECK'
+use strict;
+use warnings;
+use PVE::Storage;
+my $store = shift;
+my $cfg = PVE::Storage::config();
+my $scfg = PVE::Storage::storage_check_enabled($cfg, $store);
+die "storage '$store' does not support VM disk images\n" unless $scfg->{content}->{images};
+my $info = PVE::Storage::storage_info($cfg, 'images', $store)->{$store};
+die "storage '$store' is not active on this node\n" unless $info && $info->{enabled} && $info->{active};
+STORAGECHECK
+}
+
+import_template_disk() {
+    local image="$1" before after output
+    # Storage can change during a long image build. Check it again before import.
+    validate_template_storage || die "storage '$STORAGE' cannot accept VM disks; select an enabled image store with --storage"
+    before=$(qm config "$TEMPLATE_VMID") || die "cannot inspect VM $TEMPLATE_VMID before import"
+    if ! output=$(qm importdisk "$TEMPLATE_VMID" "$image" "$STORAGE" "${@:2}" 2>&1); then
+        printf '%s\n' "$output" >&2
+        die "disk import failed on '$STORAGE'; VM $TEMPLATE_VMID was not converted to a template"
+    fi
+    after=$(qm config "$TEMPLATE_VMID") || die "cannot inspect VM $TEMPLATE_VMID after import"
+    # Use the newly registered unused disk, never guessed names or progress text.
+    if ! IMPORT_VOLID=$(python3 -S -c '
+import re, sys
+before, after = sys.argv[1:]
+def unused(text):
+    return {m[1]: m[2].split(",", 1)[0] for line in text.splitlines()
+            if (m := re.fullmatch(r"(unused[0-9]+): (.+)", line))}
+old, new = unused(before), unused(after)
+if any(new.get(key) != value for key, value in old.items()):
+    sys.exit("disk import changed a pre-existing unused volume")
+added = [value for key, value in new.items() if key not in old]
+if len(added) != 1:
+    sys.exit("disk import did not register exactly one new unused volume")
+print(added[0])
+' "$before" "$after"); then
+        printf '%s\n' "$output" >&2
+        die "cannot verify imported disk for VM $TEMPLATE_VMID; inspect its unused disks before retrying"
+    fi
+    # Verify storage, VM ownership and a non-empty backing volume through PVE.
+    perl - "$STORAGE" "$TEMPLATE_VMID" "$IMPORT_VOLID" <<'IMPORTCHECK' || die "imported volume '$IMPORT_VOLID' failed verification"
+use strict;
+use warnings;
+use PVE::Storage;
+my ($store, $vmid, $volid) = @ARGV;
+my $cfg = PVE::Storage::config();
+my ($sid) = PVE::Storage::parse_volume_id($volid);
+die "imported volume is on unexpected storage\n" unless $sid eq $store;
+my ($type, $name, $owner) = PVE::Storage::parse_volname($cfg, $volid);
+die "imported volume is not a disk owned by this VM\n" unless $type eq 'images' && defined($owner) && $owner == $vmid;
+my $size = PVE::Storage::volume_size_info($cfg, $volid);
+die "imported backing volume is missing or empty\n" unless defined($size) && $size > 0;
+IMPORTCHECK
+}
+
+attach_template_disk() {
+    local device="$1" config
+    qm set "$TEMPLATE_VMID" "--$device" "$IMPORT_VOLID" "${@:2}" \
+        || die "cannot attach imported disk '$IMPORT_VOLID'"
+    config=$(qm config "$TEMPLATE_VMID") || die "cannot verify attached disk"
+    printf '%s\n' "$config" | awk -v device="$device" -v volume="$IMPORT_VOLID" '
+        $1 == device ":" { split($2, parts, ","); if (parts[1] == volume) found=1 }
+        END { exit !found }
+    ' || die "imported disk '$IMPORT_VOLID' is not attached as $device"
+}
+
 # Allow the network/package policy helpers to be exercised without touching
 # PVE or pulling an image. This is intentionally undocumented user surface.
 if [ "${PVE_MICROVM_TEST_HELPERS_ONLY:-0}" = 1 ]; then
@@ -313,6 +382,13 @@ if [ ! -f "$KERNEL" ]; then
     log "Using host kernel: $KERNEL"
 fi
 
+# Refuse unusable storage before deleting a template or pulling/building images.
+# OSv is diskless; gokrazy only prints external build instructions.
+case "${IMAGE,,}" in
+    osv*|gokrazy*) ;;
+    *) validate_template_storage || die "storage '$STORAGE' cannot accept VM disks; select an enabled image store with --storage" ;;
+esac
+
 if [ "$REFRESH" -eq 1 ] && qm config "$TEMPLATE_VMID" >/dev/null 2>&1; then
     log "Removing existing template $TEMPLATE_VMID"
     qm destroy "$TEMPLATE_VMID" --purge || die "cannot remove template $TEMPLATE_VMID"
@@ -382,10 +458,9 @@ if echo "$IMAGE" | grep -qi '^9front'; then
 
     # Import the qcow2
     log "Importing disk to $STORAGE..."
-    IMPORT_OUTPUT=$(qm importdisk "$TEMPLATE_VMID" "$NFRONT_QCOW2" "$STORAGE" --format qcow2 2>&1)
-    IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${TEMPLATE_VMID}-disk-0")
+    import_template_disk "$NFRONT_QCOW2" --format qcow2
     log "Imported: $IMPORT_VOLID"
-    qm set "$TEMPLATE_VMID" --scsi0 "$IMPORT_VOLID" --boot order=scsi0
+    attach_template_disk scsi0 --boot order=scsi0
 
     # 9front serial console: append console=0 to plan9.ini
     # (handled by the 9front boot loader when serial is available)
@@ -492,11 +567,8 @@ if echo "$IMAGE" | grep -qi '^openwrt'; then
         --tags "$TAGS,openwrt" 2>&1 || die "qm create failed"
 
     log "Importing disk..."
-    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" "$OPENWRT_IMG" "$STORAGE" 2>&1)
-    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\K[^']+")
-    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
-
-    qm set "$TEMPLATE_VMID" --ide0 "$VOLID" --boot order=ide0 2>&1
+    import_template_disk "$OPENWRT_IMG"
+    attach_template_disk ide0 --boot order=ide0
 
     log "Converting to template..."
     qm template "$TEMPLATE_VMID" 2>&1
@@ -512,7 +584,6 @@ if echo "$IMAGE" | grep -qi '^openwrt'; then
     log ""
     log "Press Enter at the console to activate the shell."
     log "Default LAN: 192.168.1.1 — configure via UCI or LuCI."
-    cleanup
     exit 0
 fi
 
@@ -542,11 +613,8 @@ if echo "$IMAGE" | grep -qi '^opnsense'; then
         --tags "$TAGS,opnsense,freebsd" 2>&1 || die "qm create failed"
 
     log "Importing disk (2.5 GB)..."
-    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" "$OPNSENSE_IMG" "$STORAGE" 2>&1)
-    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\K[^']+")
-    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
-
-    qm set "$TEMPLATE_VMID" --ide0 "$VOLID" --boot order=ide0 2>&1
+    import_template_disk "$OPNSENSE_IMG"
+    attach_template_disk ide0 --boot order=ide0
 
     log "Converting to template..."
     qm template "$TEMPLATE_VMID" 2>&1
@@ -563,7 +631,6 @@ if echo "$IMAGE" | grep -qi '^opnsense'; then
     log ""
     log "Default credentials: root / opnsense"
     log "Web UI: https://<LAN-IP>/"
-    cleanup
     exit 0
 fi
 
@@ -601,11 +668,8 @@ if echo "$IMAGE" | grep -qi '^smolbsd'; then
         --args "-kernel /usr/share/pve-microvm/netbsd-smol -append \"console=com root=dk0\"" 2>&1 || die "qm create failed"
 
     log "Importing disk..."
-    IMPORT_OUT=$(qm importdisk "$TEMPLATE_VMID" images/rescue-amd64.img "$STORAGE" 2>&1)
-    VOLID=$(echo "$IMPORT_OUT" | grep -oP "unused0: successfully imported disk '\\K[^']+")
-    [ -z "$VOLID" ] && VOLID="${STORAGE}:vm-${TEMPLATE_VMID}-disk-0"
-
-    qm set "$TEMPLATE_VMID" --scsi0 "$VOLID" 2>&1
+    import_template_disk images/rescue-amd64.img
+    attach_template_disk scsi0
 
     log "Converting to template..."
     qm template "$TEMPLATE_VMID" 2>&1
@@ -623,7 +687,6 @@ if echo "$IMAGE" | grep -qi '^smolbsd'; then
     log ""
     log "Note: SmolBSD uses virtio-mmio (not PCIe). The MicroVM.pm"
     log "module auto-detects NetBSD kernel and uses mmio transport."
-    cleanup
     exit 0
 fi
 
@@ -1020,10 +1083,9 @@ qm set "$TEMPLATE_VMID" --delete vmgenid --delete smbios1 2>/dev/null || true
 
 # Step 6: Import disk
 log "Importing disk to $STORAGE..."
-IMPORT_OUTPUT=$(qm importdisk "$TEMPLATE_VMID" "$QCOW2" "$STORAGE" --format qcow2 2>&1)
-IMPORT_VOLID=$(echo "$IMPORT_OUTPUT" | grep -oP "successfully imported disk '\K[^']+" || echo "$STORAGE:vm-${TEMPLATE_VMID}-disk-0")
+import_template_disk "$QCOW2" --format qcow2
 log "Imported disk: $IMPORT_VOLID"
-qm set "$TEMPLATE_VMID" --scsi0 "$IMPORT_VOLID"
+attach_template_disk scsi0
 
 # Step 7: Set static IP via /etc/microvm-static-net if ipconfig0 is set
 # No cloud-init drive needed — networking is handled by systemd-networkd

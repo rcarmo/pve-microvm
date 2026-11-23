@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible failure in pve-microvm.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include the versions and failing command from the affected Proxmox node.
+        Remove passwords, tokens, public addresses, hostnames and private workload details from logs.
+  - type: input
+    id: pve-version
+    attributes:
+      label: Proxmox VE version
+      description: Run `pveversion` on the affected node.
+      placeholder: pve-manager/9.x.x/...
+    validations:
+      required: true
+  - type: input
+    id: microvm-version
+    attributes:
+      label: pve-microvm version
+      description: Run `dpkg-query -W pve-microvm`. For a source install, include the commit ID.
+      placeholder: pve-microvm 0.4.3-1
+    validations:
+      required: true
+  - type: textarea
+    id: component-versions
+    attributes:
+      label: Kernel, QEMU and qemu-server versions
+      description: Include `uname -r`, `qemu-system-x86_64 --version` and `dpkg-query -W qemu-server` output.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact command or Web UI steps, image and relevant flags.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and error output
+      description: Include the complete error or task log after removing private details.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: storage
+    attributes:
+      label: Storage and VM configuration
+      description: For storage or template failures, include sanitised `pvesm status`, relevant `/etc/pve/storage.cfg` entries and `qm config <vmid>`. Keep enabled/node restrictions and content types visible.
+      render: text
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround or additional context
+      description: Note whether the guest is running, whether this worked before, and any partial changes after failure. Do not retry an additive disk resize until you have checked the current sizes.
