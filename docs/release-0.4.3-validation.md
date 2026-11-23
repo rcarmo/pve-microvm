@@ -1,8 +1,9 @@
 # v0.4.3 published-package validation
 
-The published **0.4.3-1** package passed artifact checks and disabled-storage
-preflight on Proxmox on 23 November 2026. The fix and issue forms are available
-in [v0.4.3](https://github.com/rcarmo/pve-microvm/releases/tag/v0.4.3).
+The published **0.4.3-1** package passed artifact checks, disabled-storage
+preflight and sequential installation on five Proxmox hosts on 23 November
+2026. The fix and issue forms are available in
+[v0.4.3](https://github.com/rcarmo/pve-microvm/releases/tag/v0.4.3).
 
 ## Artifact and tests
 
@@ -57,12 +58,38 @@ On a host with qemu-server 9.2.8 and QEMU 11.0.3:
 - The extracted published tool repeated that full disabled-storage refresh
   check successfully. It matched the source used for the earlier live import.
 
-No fleet package upgrade or workload guest restart was performed. Storage
-configuration was not changed. The valid-import test covers LVM-thin; other
-storage backends and complete specialist image downloads were not live-tested.
+The storage tests did not change storage configuration or restart workload
+guests. The valid-import test covers LVM-thin; other storage backends and
+complete specialist image downloads were not live-tested.
 The disabled-storage check stops before the OCI build, so a full OCI build was
 not repeated. Failed-import diagnostics and ambiguous/missing disk cases were
 covered with isolated mocks.
+
+## Host-by-host rollout
+
+All five hosts upgraded from **0.4.2-1** to **0.4.3-1**, one at a time, after
+verification of the published package digest. Installed qemu-server versions
+were 9.2.8 and 9.2.10. Each host retained recovery copies of installed source,
+the template tool, affected Perl files, VM/container configuration and storage
+configuration.
+
+Checks verified unchanged `pvedaemon`, QEMU and running LXC init PIDs, VM and
+container configurations, running/stopped states and storage configuration.
+MicroVM boot IDs, kernels, security profiles, application services, container
+health, IPv4 addresses and default routes were preserved. No host or guest
+restart occurred. Package audits were clean, no new host units failed and no
+conflicting PVE tasks were active at completion.
+
+One host already lacked verified Machine/QemuServer rollback provenance. The
+upgrade preserved that fail-closed limitation; it did not manufacture a new
+manifest from patched files. Independent BlockJob/Blockdev manifests remained
+valid. Fresh host recovery copies were retained. A guest backup-agent service
+was already restart-looping before installation (more than 67,000 recorded
+restarts); that observed pre-existing failure was excluded from the snapshot
+comparison and left unchanged.
+
+Disposable package copies, rollout scripts and logs were removed after
+verification. Recovery copies remain on each host.
 
 ## Existing partial templates
 
